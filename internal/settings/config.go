@@ -10,9 +10,10 @@ import (
 type keys int
 
 const (
-	PATH        = "cmd/netchat/config.toml"
-	PATH_D      = "config.toml"
-	PORT   keys = iota
+	PATH         = "cmd/netchat/config.toml"
+	PATH_D       = "../../misc/config.toml"
+	ADDRESS keys = iota
+	PORT
 )
 
 var (
@@ -24,7 +25,8 @@ type config struct {
 }
 
 type general struct {
-	Port int
+	Address string
+	Port    int
 }
 
 func Get(key keys) interface{} {
@@ -41,6 +43,8 @@ func Get(key keys) interface{} {
 		panic(err)
 	}
 	switch key {
+	case ADDRESS:
+		return conf.General.Address
 	case PORT:
 		return conf.General.Port
 	default:
