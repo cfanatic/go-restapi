@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "1: Compile",
+            "type": "shell",
+            "isBackground": true,
+            "command": "make compile",
+            "problemMatcher": []
+        },
+        {
+            "label": "2: Deploy",
+            "type": "shell",
+            "isBackground": true,
+            "command": "make deploy",
+            "problemMatcher": []
+        },
+        {
+            "label": "3: Clean",
+            "type": "shell",
+            "isBackground": true,
+            "command": "make clean",
+            "problemMatcher": []
+        },
+        {
+            "label": "4: Test",
+            "type": "shell",
+            "isBackground": true,
+            "command": "go test $(go list ./... | grep -v /netchat)",
+            "problemMatcher": []
+        }
+    ]
+}
