@@ -59,6 +59,29 @@ func unavailable(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": ""})
 }
 
+func login(w http.ResponseWriter, r *http.Request) {
+	var user, password string
+	var ok bool
+	pathParams := mux.Vars(r)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	if user, ok = pathParams["user"]; ok {
+		if len(user) == 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"message": "user missing"})
+			return
+		}
+	}
+	if password, ok = pathParams["password"]; ok {
+		if len(password) == 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"message": "password missing"})
+			return
+		}
+	}
+	json.NewEncoder(w).Encode(map[string]string{"message": fmt.Sprintf("{user: %s, password: %s}", user, password)})
+}
+
 func main() {
 	addr := settings.Address()
 	port := settings.PortTLS()
@@ -67,6 +90,7 @@ func main() {
 	s.HandleFunc("/", get).Methods("GET")
 	s.HandleFunc("/", post).Methods("POST")
 	s.HandleFunc("/", unavailable)
+	s.HandleFunc("/login/{user}:{password}", login).Methods("GET")
 	s.Use(record, authenticate)
 	srv := &http.Server{
 		Handler:      s,
@@ -77,8 +101,8 @@ func main() {
 
 	restapi.SendRequest(restapi.Request{
 		Token:  "fake_token",
-		Method: "POST",
-		Url:    "https://127.0.0.1",
+		Method: "GET",
+		Url:    "https://127.0.0.1/login/RandomUser:HASH",
 		Body:   "Send POST request",
 	})
 
