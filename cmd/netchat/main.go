@@ -50,13 +50,6 @@ func get(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "GET called"})
 }
 
-func post(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "POST called"})
-}
-
 func unavailable(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
@@ -95,7 +88,6 @@ func main() {
 	router := mux.NewRouter()
 	s := router.Host(addr).Subrouter()
 	s.HandleFunc("/", get).Methods("GET")
-	s.HandleFunc("/", post).Methods("POST")
 	s.HandleFunc("/", unavailable)
 	s.HandleFunc("/login/{user}:{password}", login).Methods("GET")
 	s.Use(record, authenticate)
