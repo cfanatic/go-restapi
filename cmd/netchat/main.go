@@ -10,14 +10,31 @@ import (
 
 	"github.com/cfanatic/go-netchat/internal/restapi"
 	"github.com/cfanatic/go-netchat/internal/settings"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/gorilla/mux"
 )
+
+var secret_key = []byte("my_secret_key")
+
+var users = map[string]string{
+	"RandomUser1": "test1",
+	"RandomUser2": "test2",
+}
+
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type Claims struct {
+	Username string `json:"username"`
+	jwt.StandardClaims
+}
 
 func record(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			log.Println(fmt.Sprintf("Request as %s from %s to %s %s",
-				r.Header["X-Session-Token"],
+			log.Println(fmt.Sprintf("Request from %s to %s %s",
 				r.RemoteAddr,
 				r.Method,
 				r.RequestURI,
@@ -30,15 +47,37 @@ func record(next http.Handler) http.Handler {
 func authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			user := make(map[string]string)
-			user["fake_token"] = "RandomUser"
-			token := r.Header.Get("X-Session-Token")
-			if user, found := user[token]; found {
-				next.ServeHTTP(w, r)
-			} else {
-				log.Println("Authentification failed", user)
-				http.Error(w, "Forbidden", http.StatusForbidden)
+			var creds Credentials
+			err := json.Unmarshal([]byte(`{"username":"RandomUser2","password":"test2"}`), &creds)
+			if err != nil {
+				log.Println("Bad Request with invalid JSON")
+				http.Error(w, "Bad Request with invalid JSON", http.StatusBadRequest)
 			}
+			password, ok := users[creds.Username]
+			if !ok || password != creds.Password {
+				log.Println("Authentification failed")
+				http.Error(w, "Authentification failed", http.StatusUnauthorized)
+			}
+			expiration := time.Now().Add(5 * time.Minute)
+			claims := &Claims{
+				Username: creds.Username,
+				StandardClaims: jwt.StandardClaims{
+					ExpiresAt: jwt.At(expiration),
+				},
+			}
+			tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			token, err := tmp.SignedString(secret_key)
+			if err != nil {
+				log.Println("Could not create JWT")
+				http.Error(w, "Could not create JWT", http.StatusInternalServerError)
+			}
+			http.SetCookie(w, &http.Cookie{
+				Name:    "token",
+				Value:   token,
+				Expires: expiration,
+			})
+			fmt.Println("Test")
+			next.ServeHTTP(w, r)
 		},
 	)
 }
@@ -58,38 +97,22 @@ func unavailable(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	var user, password string
-	var ok bool
-	pathParams := mux.Vars(r)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
-	if user, ok = pathParams["user"]; ok {
-		if len(user) == 0 {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"message": "user missing"})
-			return
-		}
-	}
-	if password, ok = pathParams["password"]; ok {
-		if len(password) == 0 {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"message": "password missing"})
-			return
-		}
-	}
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": fmt.Sprintf("{user: %s, password: %s}", user, password),
+		"message": "passed all",
 	})
 }
 
 func main() {
 	addr := settings.Address()
 	port := settings.PortTLS()
+	cert_crt, cert_key := settings.Certificate()
 	router := mux.NewRouter()
 	s := router.Host(addr).Subrouter()
 	s.HandleFunc("/", get).Methods("GET")
 	s.HandleFunc("/", unavailable)
-	s.HandleFunc("/login/{user}:{password}", login).Methods("GET")
+	s.HandleFunc("/login", login).Methods("POST")
 	s.Use(record, authenticate)
 	srv := &http.Server{
 		Handler:      s,
@@ -99,13 +122,12 @@ func main() {
 	}
 
 	restapi.SendRequest(restapi.Request{
-		Token:  "fake_token",
-		Method: "GET",
-		Url:    "https://127.0.0.1/login/RandomUser:HASH",
-		Body:   "Send POST request",
+		Method: "POST",
+		Url:    "https://127.0.0.1/login",
+		Body:   `{"username":"RandomUser1","password":"test1"}`,
 	})
 
-	path_crt, _ := filepath.Abs("misc/server.crt")
-	path_key, _ := filepath.Abs("misc/server.key")
+	path_crt, _ := filepath.Abs(cert_crt)
+	path_key, _ := filepath.Abs(cert_key)
 	log.Fatal(srv.ListenAndServeTLS(path_crt, path_key))
 }

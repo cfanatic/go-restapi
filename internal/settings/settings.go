@@ -18,6 +18,7 @@ const (
 	ADDRESS keys = iota
 	PORT
 	PORT_TLS
+	CERTIFICATE
 )
 
 var (
@@ -29,17 +30,19 @@ type config struct {
 }
 
 type general struct {
-	Address  string
-	Port     int
-	Port_TLS int
+	Address     string
+	Port        int
+	Port_TLS    int
+	Certificate []string
 }
 
 func new() config {
 	return config{
 		General: general{
-			Address:  "127.0.0.1",
-			Port:     8080,
-			Port_TLS: 443,
+			Address:     "127.0.0.1",
+			Port:        8080,
+			Port_TLS:    443,
+			Certificate: []string{"misc/server.crt", "misc/server.key"},
 		},
 	}
 }
@@ -70,6 +73,8 @@ func get(key keys) interface{} {
 		return conf.General.Port
 	case PORT_TLS:
 		return conf.General.Port_TLS
+	case CERTIFICATE:
+		return conf.General.Certificate
 	default:
 		return nil
 	}
@@ -85,4 +90,9 @@ func Port() int {
 
 func PortTLS() int {
 	return get(PORT_TLS).(int)
+}
+
+func Certificate() (string, string) {
+	tmp := get(CERTIFICATE).([]string)
+	return tmp[0], tmp[1]
 }

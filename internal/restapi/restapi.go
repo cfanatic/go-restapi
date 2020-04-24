@@ -12,7 +12,6 @@ import (
 )
 
 type Request struct {
-	Token  string
 	Method string
 	Url    string
 	Body   string
@@ -22,9 +21,8 @@ func SendRequest(request Request) string {
 	var message string
 	time.AfterFunc(2*time.Second, func() {
 		buf := new(bytes.Buffer)
-		json.NewEncoder(buf).Encode(map[string]string{"message": request.Body})
+		json.NewEncoder(buf).Encode(request.Body)
 		req, err := http.NewRequest(request.Method, request.Url, buf)
-		req.Header.Set("X-Session-Token", request.Token)
 		req.Header.Set("Content-Type", "application/json")
 
 		tr := &http.Transport{

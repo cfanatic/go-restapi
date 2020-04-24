@@ -7,7 +7,6 @@ import (
 func TestSendRequest(t *testing.T) {
 	INPUT := "POST called"
 	request := Request{
-		Token:  "fake_token",
 		Method: "POST",
 		Url:    "https://127.0.0.1",
 		Body:   "Send POST request",
