@@ -16,7 +16,12 @@ import (
 func record(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			log.Println(fmt.Sprintf("Request as %s from %s to %s %s", r.Header["X-Session-Token"], r.RemoteAddr, r.Method, r.RequestURI))
+			log.Println(fmt.Sprintf("Request as %s from %s to %s %s",
+				r.Header["X-Session-Token"],
+				r.RemoteAddr,
+				r.Method,
+				r.RequestURI,
+			))
 			next.ServeHTTP(w, r)
 		},
 	)
@@ -79,7 +84,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	json.NewEncoder(w).Encode(map[string]string{"message": fmt.Sprintf("{user: %s, password: %s}", user, password)})
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": fmt.Sprintf("{user: %s, password: %s}", user, password),
+	})
 }
 
 func main() {
