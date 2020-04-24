@@ -57,7 +57,7 @@ func get(key keys) interface{} {
 	}
 	if _, err := toml.DecodeFile(path, &conf); err != nil {
 		if errors.As(err, &e) {
-			log.Println("using default configuration setting")
+			log.Println("Using default configuration setting")
 			conf = new()
 		} else {
 			panic(err)
