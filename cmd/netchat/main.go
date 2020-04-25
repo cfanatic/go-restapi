@@ -21,11 +21,6 @@ var users = map[string]string{
 	"RandomUser2": "test2",
 }
 
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
@@ -47,20 +42,16 @@ func record(next http.Handler) http.Handler {
 func authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			var creds Credentials
-			err := json.Unmarshal([]byte(`{"username":"RandomUser2","password":"test2"}`), &creds)
-			if err != nil {
-				log.Println("Bad Request with invalid JSON")
-				http.Error(w, "Bad Request with invalid JSON", http.StatusBadRequest)
-			}
-			password, ok := users[creds.Username]
-			if !ok || password != creds.Password {
+			params := mux.Vars(r)
+			password, ok := params["password"]
+			fmt.Println(params)
+			if !ok || password != users[params["user"]] {
 				log.Println("Authentification failed")
 				http.Error(w, "Authentification failed", http.StatusUnauthorized)
 			}
 			expiration := time.Now().Add(5 * time.Minute)
 			claims := &Claims{
-				Username: creds.Username,
+				Username: params["user"],
 				StandardClaims: jwt.StandardClaims{
 					ExpiresAt: jwt.At(expiration),
 				},
@@ -76,7 +67,6 @@ func authenticate(next http.Handler) http.Handler {
 				Value:   token,
 				Expires: expiration,
 			})
-			fmt.Println("Test")
 			next.ServeHTTP(w, r)
 		},
 	)
@@ -112,7 +102,7 @@ func main() {
 	s := router.Host(addr).Subrouter()
 	s.HandleFunc("/", get).Methods("GET")
 	s.HandleFunc("/", unavailable)
-	s.HandleFunc("/login", login).Methods("POST")
+	s.HandleFunc("/login/{user}/{password}", login).Methods("GET")
 	s.Use(record, authenticate)
 	srv := &http.Server{
 		Handler:      s,
@@ -122,9 +112,9 @@ func main() {
 	}
 
 	restapi.SendRequest(restapi.Request{
-		Method: "POST",
-		Url:    "https://127.0.0.1/login",
-		Body:   `{"username":"RandomUser1","password":"test1"}`,
+		Method: "GET",
+		Url:    "https://127.0.0.1/login/RandomUser1/test1",
+		Body:   "Send POST request",
 	})
 
 	path_crt, _ := filepath.Abs(cert_crt)

@@ -47,7 +47,6 @@ func SendRequest(request Request) string {
 			if message = body["message"].(string); len(message) > 0 {
 				log.Print("Body: ", message)
 			}
-
 		}
 	})
 	return message
