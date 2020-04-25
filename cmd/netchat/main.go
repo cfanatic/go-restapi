@@ -27,6 +27,18 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
+func getClaims(token string) *Claims {
+	keyFunc := func(token *jwt.Token) (interface{}, error) {
+		return secret_key, nil
+	}
+	claims := &Claims{}
+	if _, err := jwt.ParseWithClaims(token, claims, keyFunc); err == nil {
+		return claims
+	} else {
+		return nil
+	}
+}
+
 func record(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -82,9 +94,8 @@ func authenticate(next http.Handler) http.Handler {
 					return
 				}
 			} else {
-				tmp := c.Value
 				claims := &Claims{}
-				token, err := jwt.ParseWithClaims(tmp, claims, func(tmp *jwt.Token) (interface{}, error) {
+				token, err := jwt.ParseWithClaims(c.Value, claims, func(token *jwt.Token) (interface{}, error) {
 					return secret_key, nil
 				})
 				if err != nil {
@@ -110,32 +121,37 @@ func authenticate(next http.Handler) http.Handler {
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	message, _ := Unmarshall(body)
+	body, _ = json.Marshal(message)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "GET called"})
+	w.Write(body)
+
 }
 
 func unavailable(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusMethodNotAllowed)
-	json.NewEncoder(w).Encode(map[string]string{"message": ""})
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-	message := Unmarshall(body)
-	body, _ = json.Marshal(message)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Logged in successfully"))
 }
 
 func user(w http.ResponseWriter, r *http.Request) {
+	var claims *Claims
+	if c, err := r.Cookie("token"); err == nil {
+		claims = getClaims(c.Value)
+	}
 	body, _ := json.Marshal(Message{
 		Header: "user",
-		Body:   "ARND",
+		Body:   claims.Username,
 	})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")

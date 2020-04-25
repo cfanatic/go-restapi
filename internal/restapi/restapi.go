@@ -22,29 +22,28 @@ type Request struct {
 	Message Message
 }
 
-func Marshall(message Message) []byte {
+func Marshall(message Message) ([]byte, error) {
 	var body []byte
 	var err error
 	if body, err = json.Marshal(message); err != nil {
-		panic("Could not marshal JSON string")
+		// do nothing
 	}
-	return body
+	return body, err
 }
 
-func Unmarshall(body []byte) Message {
+func Unmarshall(body []byte) (Message, error) {
 	var message Message
-	if len(body) > 0 {
-		if err := json.Unmarshal(body, &message); err != nil {
-			panic("Could not unmarshal JSON string")
-		}
+	var err error
+	if err = json.Unmarshal(body, &message); err != nil {
+		// do nothing
 	}
-	return message
+	return message, err
 }
 
 func SendRequest(request Request) {
 	var body []byte
 	time.AfterFunc(2*time.Second, func() {
-		body = Marshall(request.Message)
+		body, _ = Marshall(request.Message)
 		req, err := http.NewRequest(request.Method, request.Url, bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -63,7 +62,8 @@ func SendRequest(request Request) {
 			log.Println(fmt.Sprintf("%s: %s", key, value[0]))
 		}
 		body, _ = ioutil.ReadAll(resp.Body)
-		message := Unmarshall(body)
-		log.Println(message)
+		if message, err := Unmarshall(body); err == nil {
+			log.Println(message)
+		}
 	})
 }
