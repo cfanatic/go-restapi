@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cfanatic/go-netchat/internal/restapi"
+	. "github.com/cfanatic/go-netchat/internal/restapi"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/gorilla/mux"
@@ -91,20 +91,12 @@ func unavailable(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	var message restapi.Message
 	body, _ := ioutil.ReadAll(r.Body)
-	if len(body) > 0 {
-		if err := json.Unmarshal(body, &message); err != nil {
-			log.Println("Could not unmarshal JSON string")
-		} else {
-			log.Println("Body: ", message)
-		}
-	}
-	message.Header, message.Body = "message", "this is a test"
-	buf, _ := json.Marshal(message)
+	message := Unmarshall(body)
+	body, _ = json.Marshal(message)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(buf)
+	w.Write(body)
 }
 
 func main() {
@@ -124,14 +116,13 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	message := restapi.Message{
-		Header: "message",
-		Body:   "test object",
-	}
-	restapi.SendRequest(restapi.Request{
-		Method:  "GET",
-		Url:     "https://127.0.0.1/login/RandomUser1/test1",
-		Message: message,
+	SendRequest(Request{
+		Method: "GET",
+		Url:    "https://127.0.0.1/login/RandomUser1/test1",
+		Message: Message{
+			Header: "message",
+			Body:   "test object",
+		},
 	})
 
 	path_crt, _ := filepath.Abs(cert_crt)

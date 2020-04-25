@@ -22,10 +22,30 @@ type Request struct {
 	Message Message
 }
 
+func Marshall(message Message) []byte {
+	var body []byte
+	var err error
+	if body, err = json.Marshal(message); err != nil {
+		panic("Could not marshal JSON string")
+	}
+	return body
+}
+
+func Unmarshall(body []byte) Message {
+	var message Message
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &message); err != nil {
+			panic("Could not unmarshal JSON string")
+		}
+	}
+	return message
+}
+
 func SendRequest(request Request) {
+	var body []byte
 	time.AfterFunc(2*time.Second, func() {
-		buf, err := json.Marshal(request.Message)
-		req, err := http.NewRequest(request.Method, request.Url, bytes.NewBuffer(buf))
+		body = Marshall(request.Message)
+		req, err := http.NewRequest(request.Method, request.Url, bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		tr := &http.Transport{
@@ -42,14 +62,8 @@ func SendRequest(request Request) {
 		for key, value := range resp.Header {
 			log.Println(fmt.Sprintf("%s: %s", key, value[0]))
 		}
-		var message Message
-		body, _ := ioutil.ReadAll(resp.Body)
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &message); err != nil {
-				log.Println("Could not unmarshal JSON string")
-			} else {
-				log.Println("Body: ", message)
-			}
-		}
+		body, _ = ioutil.ReadAll(resp.Body)
+		message := Unmarshall(body)
+		log.Println(message)
 	})
 }
