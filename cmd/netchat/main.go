@@ -43,35 +43,68 @@ func record(next http.Handler) http.Handler {
 func authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			params := mux.Vars(r)
-			user, ok_user := params["user"]
-			password, ok_password := params["password"]
-			if !ok_user || !ok_password || password != database[user] {
-				log.Println("Authentification failed")
-				http.Error(w, "Authentification failed", http.StatusUnauthorized)
-				return
+			if c, err := r.Cookie("token"); err != nil {
+				if err == http.ErrNoCookie {
+					params := mux.Vars(r)
+					user, ok_user := params["user"]
+					password, ok_password := params["password"]
+					if !ok_user || !ok_password || password != database[user] {
+						log.Println("Authentification failed")
+						http.Error(w, "Authentification failed", http.StatusUnauthorized)
+						return
+					}
+					expiration := time.Now().Add(settings.Expiration() * time.Minute)
+					claims := &Claims{
+						Username: user,
+						StandardClaims: jwt.StandardClaims{
+							ExpiresAt: jwt.At(expiration),
+						},
+					}
+					tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+					token, err := tmp.SignedString(secret_key)
+					if err != nil {
+						log.Println("Could not create token")
+						http.Error(w, "Could not create token", http.StatusInternalServerError)
+						return
+					}
+					http.SetCookie(w, &http.Cookie{
+						Name:     "token",
+						Value:    token,
+						Expires:  expiration,
+						HttpOnly: true,
+						Path:     "/",
+					})
+					log.Println(fmt.Sprintf("%s logged in", user))
+					next.ServeHTTP(w, r)
+				} else {
+					log.Println("Bad request")
+					http.Error(w, "Bad request", http.StatusBadRequest)
+					return
+				}
+			} else {
+				tmp := c.Value
+				claims := &Claims{}
+				token, err := jwt.ParseWithClaims(tmp, claims, func(tmp *jwt.Token) (interface{}, error) {
+					return secret_key, nil
+				})
+				if err != nil {
+					if err == jwt.ErrSignatureInvalid {
+						log.Println("Token signature invalid")
+						http.Error(w, "Token signature invalid", http.StatusUnauthorized)
+					} else {
+						log.Println("Bad request")
+						http.Error(w, "Bad request", http.StatusBadRequest)
+					}
+					return
+				}
+				if !token.Valid {
+					log.Println("Authentification failed")
+					http.Error(w, "Authentification failed", http.StatusUnauthorized)
+					return
+				}
+				log.Println(fmt.Sprintf("%s authorized by cookie", claims.Username))
+				next.ServeHTTP(w, r)
 			}
-			expiration := time.Now().Add(settings.Expiration() * time.Minute)
-			claims := &Claims{
-				Username: user,
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: jwt.At(expiration),
-				},
-			}
-			tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			token, err := tmp.SignedString(secret_key)
-			if err != nil {
-				log.Println("Could not create JWT")
-				http.Error(w, "Could not create JWT", http.StatusInternalServerError)
-				return
-			}
-			http.SetCookie(w, &http.Cookie{
-				Name:    "token",
-				Value:   token,
-				Expires: expiration,
-			})
-			log.Println(fmt.Sprintf("%s authorized", user))
-			next.ServeHTTP(w, r)
 		},
 	)
 }
@@ -99,6 +132,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func user(w http.ResponseWriter, r *http.Request) {
+	body, _ := json.Marshal(Message{
+		Header: "user",
+		Body:   "ARND",
+	})
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
 func main() {
 	addr := settings.Address()
 	port := settings.PortTLS()
@@ -108,6 +151,7 @@ func main() {
 	s.HandleFunc("/", get).Methods("GET")
 	s.HandleFunc("/", unavailable)
 	s.HandleFunc("/login/{user}/{password}", login).Methods("GET")
+	s.HandleFunc("/user/me", user).Methods("GET")
 	s.Use(record, authenticate)
 	srv := &http.Server{
 		Handler:      s,
