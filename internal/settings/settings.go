@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -19,6 +20,7 @@ const (
 	PORT
 	PORT_TLS
 	CERTIFICATE
+	EXPIRATION
 )
 
 var (
@@ -27,6 +29,7 @@ var (
 
 type config struct {
 	General general
+	Token   token
 }
 
 type general struct {
@@ -34,6 +37,10 @@ type general struct {
 	Port        int
 	Port_TLS    int
 	Certificate []string
+}
+
+type token struct {
+	Expiration int
 }
 
 func new() config {
@@ -75,6 +82,8 @@ func get(key keys) interface{} {
 		return conf.General.Port_TLS
 	case CERTIFICATE:
 		return conf.General.Certificate
+	case EXPIRATION:
+		return conf.Token.Expiration
 	default:
 		return nil
 	}
@@ -95,4 +104,9 @@ func PortTLS() int {
 func Certificate() (string, string) {
 	tmp := get(CERTIFICATE).([]string)
 	return tmp[0], tmp[1]
+}
+
+func Expiration() time.Duration {
+	tmp := get(EXPIRATION).(int)
+	return time.Duration(tmp)
 }

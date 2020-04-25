@@ -4,4 +4,7 @@
 address = "127.0.0.1"
 port = 8080
 port_tls = 443
-Certificate = ["misc/server.crt", "misc/server.key"]
+certificate = ["misc/server.crt", "misc/server.key"]
+
+[token]
+expiration = 5 # [minutes]

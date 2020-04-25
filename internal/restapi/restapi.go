@@ -11,18 +11,21 @@ import (
 	"time"
 )
 
-type Request struct {
-	Method string
-	Url    string
-	Body   string
+type Message struct {
+	Header string `json:"header"`
+	Body   string `json:"body"`
 }
 
-func SendRequest(request Request) string {
-	var message string
+type Request struct {
+	Method  string
+	Url     string
+	Message Message
+}
+
+func SendRequest(request Request) {
 	time.AfterFunc(2*time.Second, func() {
-		buf := new(bytes.Buffer)
-		json.NewEncoder(buf).Encode(request.Body)
-		req, err := http.NewRequest(request.Method, request.Url, buf)
+		buf, err := json.Marshal(request.Message)
+		req, err := http.NewRequest(request.Method, request.Url, bytes.NewBuffer(buf))
 		req.Header.Set("Content-Type", "application/json")
 
 		tr := &http.Transport{
@@ -39,15 +42,14 @@ func SendRequest(request Request) string {
 		for key, value := range resp.Header {
 			log.Println(fmt.Sprintf("%s: %s", key, value[0]))
 		}
-		var body map[string]interface{}
-		tmp, _ := ioutil.ReadAll(resp.Body)
-		if err := json.Unmarshal(tmp, &body); err != nil {
-			log.Println("Could not unmarshal JSON string")
-		} else {
-			if message = body["message"].(string); len(message) > 0 {
-				log.Print("Body: ", message)
+		var message Message
+		body, _ := ioutil.ReadAll(resp.Body)
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &message); err != nil {
+				log.Println("Could not unmarshal JSON string")
+			} else {
+				log.Println("Body: ", message)
 			}
 		}
 	})
-	return message
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 
 var secret_key = []byte("my_secret_key")
 
-var users = map[string]string{
+var database = map[string]string{
 	"RandomUser1": "test1",
 	"RandomUser2": "test2",
 }
@@ -43,15 +44,16 @@ func authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			params := mux.Vars(r)
-			password, ok := params["password"]
-			fmt.Println(params)
-			if !ok || password != users[params["user"]] {
+			user, ok_user := params["user"]
+			password, ok_password := params["password"]
+			if !ok_user || !ok_password || password != database[user] {
 				log.Println("Authentification failed")
 				http.Error(w, "Authentification failed", http.StatusUnauthorized)
+				return
 			}
-			expiration := time.Now().Add(5 * time.Minute)
+			expiration := time.Now().Add(settings.Expiration() * time.Minute)
 			claims := &Claims{
-				Username: params["user"],
+				Username: user,
 				StandardClaims: jwt.StandardClaims{
 					ExpiresAt: jwt.At(expiration),
 				},
@@ -61,12 +63,14 @@ func authenticate(next http.Handler) http.Handler {
 			if err != nil {
 				log.Println("Could not create JWT")
 				http.Error(w, "Could not create JWT", http.StatusInternalServerError)
+				return
 			}
 			http.SetCookie(w, &http.Cookie{
 				Name:    "token",
 				Value:   token,
 				Expires: expiration,
 			})
+			log.Println(fmt.Sprintf("%s authorized", user))
 			next.ServeHTTP(w, r)
 		},
 	)
@@ -87,11 +91,20 @@ func unavailable(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	var message restapi.Message
+	body, _ := ioutil.ReadAll(r.Body)
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &message); err != nil {
+			log.Println("Could not unmarshal JSON string")
+		} else {
+			log.Println("Body: ", message)
+		}
+	}
+	message.Header, message.Body = "message", "this is a test"
+	buf, _ := json.Marshal(message)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "passed all",
-	})
+	w.Write(buf)
 }
 
 func main() {
@@ -111,10 +124,14 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
+	message := restapi.Message{
+		Header: "message",
+		Body:   "test object",
+	}
 	restapi.SendRequest(restapi.Request{
-		Method: "GET",
-		Url:    "https://127.0.0.1/login/RandomUser1/test1",
-		Body:   "Send POST request",
+		Method:  "GET",
+		Url:     "https://127.0.0.1/login/RandomUser1/test1",
+		Message: message,
 	})
 
 	path_crt, _ := filepath.Abs(cert_crt)
