@@ -25,7 +25,7 @@ func main() {
 	s := router.Host(addr).Subrouter()
 	s.HandleFunc("/", RootHandler).Methods("GET")
 	s.HandleFunc("/login/{user}/{password}", LoginHandler).Methods("GET")
-	s.HandleFunc("/user/me", UserHandler).Methods("GET")
+	s.HandleFunc("/user", UserHandler).Methods("GET")
 	s.Use(LogHandler, AuthenticationHandler)
 
 	// send test request after a delay of two seconds

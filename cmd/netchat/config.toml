@@ -7,4 +7,5 @@ port_tls = 443
 certificate = ["misc/server.crt", "misc/server.key"]
 
 [token]
-expiration = 5 # [minutes]
+secret_key = "" # don't leave this empty
+expiration = 5 # in minutes

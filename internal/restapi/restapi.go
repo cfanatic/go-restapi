@@ -28,7 +28,7 @@ type Request struct {
 	Message Message
 }
 
-var secret_key = []byte("my_secret_key")
+var secret_key = []byte(settings.SecretKey())
 
 type Claims struct {
 	Username string `json:"username"`
@@ -109,7 +109,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					http.Error(w, "Authentification failed", http.StatusUnauthorized)
 					return
 				}
-				log.Println(fmt.Sprintf("%s authorized by cookie", claims.Username))
+				log.Println(fmt.Sprintf("%s authorized by existing cookie", claims.Username))
 				next.ServeHTTP(w, r)
 			}
 		},

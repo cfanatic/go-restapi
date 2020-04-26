@@ -20,6 +20,7 @@ const (
 	PORT
 	PORT_TLS
 	CERTIFICATE
+	SECRET_KEY
 	EXPIRATION
 )
 
@@ -40,6 +41,7 @@ type general struct {
 }
 
 type token struct {
+	SecretKey  string
 	Expiration int
 }
 
@@ -82,6 +84,8 @@ func get(key keys) interface{} {
 		return conf.General.Port_TLS
 	case CERTIFICATE:
 		return conf.General.Certificate
+	case SECRET_KEY:
+		return conf.Token.SecretKey
 	case EXPIRATION:
 		return conf.Token.Expiration
 	default:
@@ -104,6 +108,10 @@ func PortTLS() int {
 func Certificate() (string, string) {
 	tmp := get(CERTIFICATE).([]string)
 	return tmp[0], tmp[1]
+}
+
+func SecretKey() string {
+	return get(SECRET_KEY).(string)
 }
 
 func Expiration() time.Duration {
