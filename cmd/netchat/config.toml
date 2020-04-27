@@ -7,5 +7,13 @@ port_tls = 443
 certificate = ["misc/server.crt", "misc/server.key"]
 
 [token]
-secret_key = "" # don't leave this empty
+secret_key = ""
 expiration = 5 # in minutes
+
+[mysql]
+user = ""
+password = ""
+address = "127.0.0.1"
+port = 3306
+database = ""
+peer = ""

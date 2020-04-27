@@ -28,7 +28,10 @@ type Request struct {
 	Message Message
 }
 
-var secret_key = []byte(settings.SecretKey())
+var (
+	config     settings.Token
+	secret_key = []byte(config.GetSecretKey())
+)
 
 type Claims struct {
 	Username string `json:"username"`
@@ -56,12 +59,12 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					params := mux.Vars(r)
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
-					if !ok_user || !ok_password || password != database.Database[user] {
+					if !ok_user || !ok_password || password != database.DatabaseTemp[user] {
 						log.Println("Authentification failed")
 						http.Error(w, "Authentification failed", http.StatusUnauthorized)
 						return
 					}
-					expiration := time.Now().Add(settings.Expiration() * time.Minute)
+					expiration := time.Now().Add(config.GetExpiration() * time.Minute)
 					claims := &Claims{
 						Username: user,
 						StandardClaims: jwt.StandardClaims{
@@ -164,7 +167,7 @@ func SendRequest(request Request) {
 		client := &http.Client{Transport: tr}
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			log.Println(err)
 		}
 		defer resp.Body.Close()
 

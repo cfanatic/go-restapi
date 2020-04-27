@@ -4,21 +4,28 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"time"
 
+	"github.com/cfanatic/go-netchat/internal/database"
 	. "github.com/cfanatic/go-netchat/internal/restapi"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	"github.com/gorilla/mux"
 )
 
+var config settings.General
+
 func main() {
+
+	// create database connection
+	db := database.New()
+	creds := db.GetUsers()
+	fmt.Println((*creds)[1].Name)
+
 	// load configuration parameters
-	addr := settings.Address()
-	port := settings.PortTLS()
-	cert_crt, cert_key := settings.Certificate()
-	path_crt, _ := filepath.Abs(cert_crt)
-	path_key, _ := filepath.Abs(cert_key)
+	addr := config.GetAddress()
+	port := config.GetPortTLS()
+	cert := config.GetCertificate()
+	path_crt, path_key := cert[0], cert[1]
 
 	// match route requests to handlers
 	router := mux.NewRouter()
