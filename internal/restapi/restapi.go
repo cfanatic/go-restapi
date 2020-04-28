@@ -60,7 +60,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
 					if !ok_user || !ok_password || password != database.DatabaseTemp[user] {
-						Log.Log.Println("Authentification failed")
+						Log.Log.Println(fmt.Sprintf("Authentification for %s failed", strings.Split(r.RemoteAddr, ":")[0]))
 						http.Error(w, "Authentification failed", http.StatusUnauthorized)
 						return
 					}
