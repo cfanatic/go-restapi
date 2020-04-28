@@ -1,9 +1,12 @@
 # Configuration parameters
 
 [general]
+logpath = "misc/netchat.log"
+
+[backend]
 address = "127.0.0.1"
 port = 8080
-port_tls = 443
+port_tls = 445
 certificate = ["misc/server.crt", "misc/server.key"]
 
 [token]
@@ -13,7 +16,7 @@ expiration = 5 # in minutes
 [mysql]
 user = ""
 password = ""
-address = "127.0.0.1"
+address = "192.168.0.2"
 port = 3306
 database = ""
 peer = ""
