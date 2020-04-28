@@ -7,14 +7,17 @@ import (
 	"time"
 
 	"github.com/cfanatic/go-netchat/internal/database"
+	Log "github.com/cfanatic/go-netchat/internal/logger"
 	. "github.com/cfanatic/go-netchat/internal/restapi"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	"github.com/gorilla/mux"
 )
 
-var config settings.General
+var config settings.Backend
 
 func main() {
+	// print welcome message
+	Log.Log.Println("##### Starting new session #####")
 
 	// create database connection
 	db := database.New()

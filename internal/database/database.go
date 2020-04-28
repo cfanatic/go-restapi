@@ -3,9 +3,9 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
+	Log "github.com/cfanatic/go-netchat/internal/logger"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -56,7 +56,7 @@ func New() *Database {
 		config.GetDatabase(),
 	)
 	if db.db, db.err = sql.Open("mysql", dataSource); db.err != nil {
-		log.Println(db.err)
+		Log.Log.Println(db.err)
 	}
 	return db
 }
@@ -65,12 +65,12 @@ func (db *Database) GetUsers() *[]Credential {
 	sel := &(sql.Rows{})
 	creds := []Credential{}
 	if sel, db.err = db.db.Query("SELECT * FROM users ORDER BY id ASC"); db.err != nil {
-		log.Println(db.err)
+		Log.Log.Println(db.err)
 	} else {
 		for sel.Next() {
 			cred := Credential{}
 			if db.err = sel.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password); db.err != nil {
-				log.Println(db.err)
+				Log.Log.Println(db.err)
 			}
 			creds = append(creds, cred)
 		}

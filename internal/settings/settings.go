@@ -3,15 +3,19 @@ package settings
 import (
 	"errors"
 	"flag"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	Log "github.com/cfanatic/go-netchat/internal/logger"
 )
 
 type General struct {
+	LogPath string
+}
+
+type Backend struct {
 	Address     string
 	Port        int
 	Port_TLS    int
@@ -34,6 +38,7 @@ type Mysql struct {
 
 type Settings struct {
 	General General
+	Backend Backend
 	Token   Token
 	Mysql   Mysql
 }
@@ -62,9 +67,12 @@ func init() {
 	}
 	if _, err := toml.DecodeFile(path, &config); err != nil {
 		if errors.As(err, &e) {
-			log.Println("Warning: Using default configuration setting")
+			Log.Log.Println("Warning: Using default configuration setting")
 			config = Settings{
 				General{
+					LogPath: "misc/netchat.log",
+				},
+				Backend{
 					Address:     "127.0.0.1",
 					Port:        8080,
 					Port_TLS:    443,
@@ -74,61 +82,65 @@ func init() {
 				Mysql{},
 			}
 		} else {
-			log.Println(err)
+			Log.Log.Println(err)
 		}
 	}
 	if *mode == "debug" {
-		crt := &config.General.Certificate[0]
-		key := &config.General.Certificate[1]
+		crt := &config.Backend.Certificate[0]
+		key := &config.Backend.Certificate[1]
 		*crt = "../../" + *crt
 		*key = "../../" + *key
 	}
 }
 
-func (general General) GetAddress() string {
-	return config.General.Address
+func (_ General) GetLogPath() string {
+	return config.General.LogPath
 }
 
-func (general General) GetPort() int {
-	return config.General.Port
+func (_ Backend) GetAddress() string {
+	return config.Backend.Address
 }
-func (general General) GetPortTLS() int {
-	return config.General.Port_TLS
+
+func (_ Backend) GetPort() int {
+	return config.Backend.Port
 }
-func (general General) GetCertificate() []string {
-	cert := config.General.Certificate
+func (_ Backend) GetPortTLS() int {
+	return config.Backend.Port_TLS
+}
+func (_ Backend) GetCertificate() []string {
+	cert := config.Backend.Certificate
 	path_crt, _ := filepath.Abs(cert[0])
 	path_key, _ := filepath.Abs(cert[1])
 	return []string{path_crt, path_key}
 }
 
-func (token Token) GetSecretKey() string {
+func (_ Token) GetSecretKey() string {
 	return config.Token.SecretKey
 }
-func (token Token) GetExpiration() time.Duration {
+func (_ Token) GetExpiration() time.Duration {
 	return time.Duration(config.Token.Expiration)
 }
 
-func (mysql Mysql) GetUser() string {
+func (_ Mysql) GetUser() string {
 	return config.Mysql.User
 }
 
-func (mysql Mysql) GetPassword() string {
+func (_ Mysql) GetPassword() string {
 	return config.Mysql.Password
 }
 
-func (mysql Mysql) GetAddress() string {
+func (_ Mysql) GetAddress() string {
 	return config.Mysql.Address
 }
 
-func (mysql Mysql) GetPort() int {
+func (_ Mysql) GetPort() int {
 	return config.Mysql.Port
 }
 
-func (mysql Mysql) GetDatabase() string {
+func (_ Mysql) GetDatabase() string {
 	return config.Mysql.Database
 }
 
-func (mysql Mysql) GetPeer() string {
+func (_ Mysql) GetPeer() string {
 	return config.Mysql.Peer
 }

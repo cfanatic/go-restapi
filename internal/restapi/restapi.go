@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/cfanatic/go-netchat/internal/database"
+	Log "github.com/cfanatic/go-netchat/internal/logger"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/gorilla/mux"
@@ -41,7 +41,7 @@ type Claims struct {
 func LogHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			log.Println(fmt.Sprintf("Request from %s to %s %s",
+			Log.Log.Println(fmt.Sprintf("Request from %s to %s %s",
 				strings.Split(r.RemoteAddr, ":")[0],
 				r.Method,
 				r.RequestURI,
@@ -60,7 +60,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
 					if !ok_user || !ok_password || password != database.DatabaseTemp[user] {
-						log.Println("Authentification failed")
+						Log.Log.Println("Authentification failed")
 						http.Error(w, "Authentification failed", http.StatusUnauthorized)
 						return
 					}
@@ -74,7 +74,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 					token, err := tmp.SignedString(secret_key)
 					if err != nil {
-						log.Println("Could not create token")
+						Log.Log.Println("Could not create token")
 						http.Error(w, "Could not create token", http.StatusInternalServerError)
 						return
 					}
@@ -85,10 +85,10 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						HttpOnly: true,
 						Path:     "/",
 					})
-					log.Println(fmt.Sprintf("%s logged in", user))
+					Log.Log.Println(fmt.Sprintf("%s logged in", user))
 					next.ServeHTTP(w, r)
 				} else {
-					log.Println("Bad request")
+					Log.Log.Println("Bad request")
 					http.Error(w, "Bad request", http.StatusBadRequest)
 					return
 				}
@@ -99,20 +99,20 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 				})
 				if err != nil {
 					if err == jwt.ErrSignatureInvalid {
-						log.Println("Token signature invalid")
+						Log.Log.Println("Token signature invalid")
 						http.Error(w, "Token signature invalid", http.StatusUnauthorized)
 					} else {
-						log.Println("Bad request")
+						Log.Log.Println("Bad request")
 						http.Error(w, "Bad request", http.StatusBadRequest)
 					}
 					return
 				}
 				if !token.Valid {
-					log.Println("Authentification failed")
+					Log.Log.Println("Authentification failed")
 					http.Error(w, "Authentification failed", http.StatusUnauthorized)
 					return
 				}
-				log.Println(fmt.Sprintf("%s authorized by existing cookie", claims.Username))
+				Log.Log.Println(fmt.Sprintf("%s authorized by existing cookie", claims.Username))
 				next.ServeHTTP(w, r)
 			}
 		},
@@ -167,17 +167,17 @@ func SendRequest(request Request) {
 		client := &http.Client{Transport: tr}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Println(err)
+			Log.Log.Println(err)
 		}
 		defer resp.Body.Close()
 
-		log.Println("Status:", resp.Status)
+		Log.Log.Println("Status: " + resp.Status)
 		for key, value := range resp.Header {
-			log.Println(fmt.Sprintf("%s: %s", key, value[0]))
+			Log.Log.Println(fmt.Sprintf("%s: %s", key, value[0]))
 		}
 		body, _ = ioutil.ReadAll(resp.Body)
 		if message, err := unmarshall(body); err == nil {
-			log.Println(message)
+			Log.Log.Println(message)
 		}
 	})
 }
