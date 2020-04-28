@@ -27,8 +27,6 @@ func main() {
 		fmt.Println(err)
 	}
 
-	return
-
 	// load configuration parameters
 	addr := config.GetAddress()
 	port := config.GetPortTLS()
@@ -46,7 +44,7 @@ func main() {
 	// send test request after a delay of two seconds
 	SendRequest(Request{
 		Method: "GET",
-		Url:    "https://127.0.0.1/login/RandomUser1/test1",
+		Url:    "https://127.0.0.1:445/login/RandomUser1/test1",
 		Message: Message{
 			Header: "message",
 			Body:   "test object",
