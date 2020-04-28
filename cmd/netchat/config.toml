@@ -6,7 +6,7 @@ logpath = "misc/netchat.log"
 [backend]
 address = "127.0.0.1"
 port = 8080
-port_tls = 445
+port_tls = 1025
 certificate = ["misc/server.crt", "misc/server.key"]
 
 [token]

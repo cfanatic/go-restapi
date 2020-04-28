@@ -10,5 +10,5 @@ ENV TZ Europe/Berlin
 WORKDIR /go/netchat
 COPY --from=build /go/netchat/bin .
 COPY --from=build /go/netchat/misc misc/
-EXPOSE 445
+EXPOSE 1025
 ENTRYPOINT /go/netchat/netchat
