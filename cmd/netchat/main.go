@@ -20,11 +20,14 @@ func main() {
 	Log.Log.Println("##### Starting new session #####")
 
 	// create database connection
-	db, _ := database.New()
-	if creds, err := db.GetUser("test"); err == nil {
-		fmt.Println((*creds).Password)
+	if db, err := database.New(); err == nil {
+		if creds, err := db.GetUser("test"); err == nil {
+			Log.Log.Println("The user is", (*creds).User)
+		} else {
+			Log.Log.Println(err)
+		}
 	} else {
-		fmt.Println(err)
+		Log.Log.Println(err)
 	}
 
 	// load configuration parameters
