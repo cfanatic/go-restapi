@@ -2,12 +2,13 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
-	Log "github.com/cfanatic/go-netchat/internal/logger"
 	"github.com/cfanatic/go-netchat/internal/settings"
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type ttime = time.Time
@@ -15,7 +16,6 @@ type ttime = time.Time
 type Database struct {
 	db   *sql.DB
 	cred *[]Credential
-	err  error
 }
 
 type Message struct {
@@ -42,41 +42,68 @@ var (
 		"RandomUser1": "test1",
 		"RandomUser2": "test2",
 	}
-	config settings.Mysql
+	configMysql settings.Mysql
+	configToken settings.Token
 )
 
-func New() *Database {
-	db := &Database{}
+func New() (*Database, error) {
+	var db Database
+	var err error
 	dataSource := fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s",
-		config.GetUser(),
-		config.GetPassword(),
-		config.GetAddress(),
-		config.GetPort(),
-		config.GetDatabase(),
+		configMysql.GetUser(),
+		configMysql.GetPassword(),
+		configMysql.GetAddress(),
+		configMysql.GetPort(),
+		configMysql.GetDatabase(),
 	)
-	if db.db, db.err = sql.Open("mysql", dataSource); db.err != nil {
-		Log.Log.Println(db.err)
-	}
-	return db
+	db.db, err = sql.Open("mysql", dataSource)
+	return &db, err
 }
 
-func (db *Database) GetUsers() *[]Credential {
-	sel := &(sql.Rows{})
-	creds := []Credential{}
-	if sel, db.err = db.db.Query("SELECT * FROM users ORDER BY id ASC"); db.err != nil {
-		Log.Log.Println(db.err)
-	} else {
-		for sel.Next() {
-			cred := Credential{}
-			if db.err = sel.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password); db.err != nil {
-				Log.Log.Println(db.err)
-			}
-			creds = append(creds, cred)
+func (db *Database) GetUser(user string) (*Credential, error) {
+	var err error
+	query := &(sql.Rows{})
+	cred := Credential{}
+	if query, err = db.db.Query("SELECT * FROM users WHERE user=?", user); err == nil {
+		for query.Next() {
+			err = query.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password)
+		}
+		if cred == (Credential{}) {
+			err = errors.New("User is not available in database: " + user)
+			return &cred, err
 		}
 	}
-	return &creds
+	return &cred, err
 }
 
-func GenerateUser() {
+func (db *Database) GenerateUser(user, password string) error {
+	var (
+		hash  []byte
+		query *sql.Rows
+		res   sql.Result
+		err   error
+	)
+	salt := configToken.GetSecretKey()
+	tmp := []byte(password + salt)
+	if hash, err = bcrypt.GenerateFromPassword(tmp, bcrypt.DefaultCost); err == nil {
+		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE user=?)", user); err == nil {
+			var cnt int
+			query.Next()
+			query.Scan(&cnt)
+			if cnt == 0 {
+				err = errors.New("User is not available in database: " + user)
+				return err
+			}
+		}
+		if res, err = db.db.Exec("UPDATE users SET password=? WHERE user=?", hash, user); err == nil {
+			if cnt, err := res.RowsAffected(); err == nil {
+				if cnt != 1 {
+					err = errors.New("Could not update user password")
+					return err
+				}
+			}
+		}
+	}
+	return err
 }
