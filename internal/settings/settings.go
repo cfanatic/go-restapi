@@ -39,43 +39,51 @@ type Settings struct {
 }
 
 const (
-	PATH_RELEASE = "cmd/netchat/config.toml"
-	PATH_DEBUG   = "../../misc/config.toml"
+	PATH_TERMINAL = "misc/config.toml"
+	PATH_DEBUG    = "../../misc/config.toml"
 )
 
 var (
-	mode   = flag.String("mode", PATH_RELEASE, "define release mode")
-	config = func() Settings {
-		var (
-			config Settings
-			path   string
-			e      *os.PathError
-		)
-		if flag.Parse(); *mode == "debug" {
-			path, _ = filepath.Abs(PATH_DEBUG)
-		} else {
-			path, _ = filepath.Abs(*mode)
-		}
-		if _, err := toml.DecodeFile(path, &config); err != nil {
-			if errors.As(err, &e) {
-				log.Println("Using default configuration setting")
-				config = Settings{
-					General{
-						Address:     "127.0.0.1",
-						Port:        8080,
-						Port_TLS:    443,
-						Certificate: []string{"misc/server.crt", "misc/server.key"},
-					},
-					Token{},
-					Mysql{},
-				}
-			} else {
-				log.Println(err)
-			}
-		}
-		return config
-	}()
+	mode   = flag.String("mode", PATH_TERMINAL, "default configuration mode")
+	config Settings
 )
+
+func init() {
+	var (
+		path string
+		e    *os.PathError
+	)
+	if flag.Parse(); *mode == "terminal" {
+		path, _ = filepath.Abs(PATH_TERMINAL)
+	} else if *mode == "debug" {
+		path, _ = filepath.Abs(PATH_DEBUG)
+	} else {
+		path, _ = filepath.Abs(*mode)
+	}
+	if _, err := toml.DecodeFile(path, &config); err != nil {
+		if errors.As(err, &e) {
+			log.Println("Warning: Using default configuration setting")
+			config = Settings{
+				General{
+					Address:     "127.0.0.1",
+					Port:        8080,
+					Port_TLS:    443,
+					Certificate: []string{"misc/server.crt", "misc/server.key"},
+				},
+				Token{},
+				Mysql{},
+			}
+		} else {
+			log.Println(err)
+		}
+	}
+	if *mode == "debug" {
+		crt := &config.General.Certificate[0]
+		key := &config.General.Certificate[1]
+		*crt = "../../" + *crt
+		*key = "../../" + *key
+	}
+}
 
 func (general General) GetAddress() string {
 	return config.General.Address
