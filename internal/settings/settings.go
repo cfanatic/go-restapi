@@ -2,13 +2,13 @@ package settings
 
 import (
 	"errors"
-	"flag"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	Log "github.com/cfanatic/go-netchat/internal/logger"
+	"github.com/cfanatic/go-netchat/internal/mode"
 )
 
 type General struct {
@@ -24,7 +24,7 @@ type Backend struct {
 
 type Token struct {
 	SecretKey  string
-	Expiration int
+	Expiration time.Duration
 }
 
 type Mysql struct {
@@ -32,6 +32,7 @@ type Mysql struct {
 	Password string
 	Address  string
 	Port     int
+	Timeout  time.Duration
 	Database string
 	Peer     string
 }
@@ -43,28 +44,17 @@ type Settings struct {
 	Mysql   Mysql
 }
 
-const (
-	PATH_TERMINAL = "misc/config.toml"
-	PATH_DEBUG    = "../../misc/config.toml"
-)
-
 var (
-	mode   = flag.String("mode", PATH_TERMINAL, "default configuration mode")
 	config Settings
 )
 
 func init() {
 	var (
-		path string
-		e    *os.PathError
+		path, flag string
+		e          *os.PathError
 	)
-	if flag.Parse(); *mode == "terminal" {
-		path, _ = filepath.Abs(PATH_TERMINAL)
-	} else if *mode == "debug" {
-		path, _ = filepath.Abs(PATH_DEBUG)
-	} else {
-		path, _ = filepath.Abs(*mode)
-	}
+	path = mode.GetFilePath("config.toml")
+	flag = mode.GetMode()
 	if _, err := toml.DecodeFile(path, &config); err != nil {
 		if errors.As(err, &e) {
 			Log.Log.Println("Warning: Using default configuration setting")
@@ -85,7 +75,7 @@ func init() {
 			Log.Log.Println(err)
 		}
 	}
-	if *mode == "debug" {
+	if flag == "debug" {
 		crt := &config.Backend.Certificate[0]
 		key := &config.Backend.Certificate[1]
 		*crt = "../../" + *crt
@@ -135,6 +125,10 @@ func (_ Mysql) GetAddress() string {
 
 func (_ Mysql) GetPort() int {
 	return config.Mysql.Port
+}
+
+func (_ Mysql) GetTimeout() time.Duration {
+	return time.Duration(config.Mysql.Timeout)
 }
 
 func (_ Mysql) GetDatabase() string {
