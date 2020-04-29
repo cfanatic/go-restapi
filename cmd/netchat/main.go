@@ -12,18 +12,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var configGeneral settings.General
-var configBackend settings.Backend
+var configG settings.General
+var configB settings.Backend
 
 func main() {
 	// print welcome message
 	Log.Log.Println("##### Starting new session #####")
 
 	// load configuration parameters
-	cred := configGeneral.GetTestUser()
-	addr := configBackend.GetAddress()
-	port := configBackend.GetPortTLS()
-	cert := configBackend.GetCertificate()
+	cred := configG.GetTestUser()
+	addr := configB.GetAddress()
+	port := configB.GetPortTLS()
+	cert := configB.GetCertificate()
 	path_crt, path_key := cert[0], cert[1]
 
 	// match route requests to handlers

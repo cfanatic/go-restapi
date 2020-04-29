@@ -40,8 +40,8 @@ type Credential struct {
 }
 
 var (
-	configMysql settings.Mysql
-	configToken settings.Token
+	configM settings.Mysql
+	configT settings.Token
 )
 
 func New() (*Database, error) {
@@ -49,13 +49,13 @@ func New() (*Database, error) {
 	var err error
 	dataSource := fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s",
-		configMysql.GetUser(),
-		configMysql.GetPassword(),
-		configMysql.GetAddress(),
-		configMysql.GetPort(),
-		configMysql.GetDatabase(),
+		configM.GetUser(),
+		configM.GetPassword(),
+		configM.GetAddress(),
+		configM.GetPort(),
+		configM.GetDatabase(),
 	)
-	to := configMysql.GetTimeout()
+	to := configM.GetTimeout()
 	db.db, err = sql.Open("mysql", dataSource)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*to)
 	defer cancel()
@@ -89,7 +89,7 @@ func (db *Database) UpdatePassword(user, password string) error {
 		err   error
 	)
 	checksum := GenerateHash(password)
-	salt := configToken.GetSecretKey()
+	salt := configT.GetSecretKey()
 	tmp := []byte(checksum + salt)
 	if hash, err = bcrypt.GenerateFromPassword(tmp, bcrypt.DefaultCost); err == nil {
 		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE user=?)", user); err == nil {
@@ -114,7 +114,7 @@ func (db *Database) UpdatePassword(user, password string) error {
 }
 
 func GenerateHash(password string) string {
-	salt := configToken.GetSecretKey()
+	salt := configT.GetSecretKey()
 	sum := sha256.New()
 	sum.Write([]byte(password + salt))
 	return fmt.Sprintf("%x", sum.Sum(nil))

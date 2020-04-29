@@ -30,9 +30,9 @@ type Request struct {
 }
 
 var (
-	config     settings.Token
-	db         *database.Database
-	secret_key = []byte(config.GetSecretKey())
+	db        *database.Database
+	configT   settings.Token
+	secretKey = []byte(configT.GetSecretKey())
 )
 
 type Claims struct {
@@ -82,7 +82,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						http.Error(w, "Authentification failed", http.StatusUnauthorized)
 						return
 					}
-					expiration := time.Now().Add(config.GetExpiration() * time.Minute)
+					expiration := time.Now().Add(configT.GetExpiration() * time.Minute)
 					claims := &Claims{
 						Username: user,
 						StandardClaims: jwt.StandardClaims{
@@ -90,7 +90,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						},
 					}
 					tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-					token, err := tmp.SignedString(secret_key)
+					token, err := tmp.SignedString(secretKey)
 					if err != nil {
 						Log.Log.Println("Could not create token")
 						http.Error(w, "Could not create token", http.StatusInternalServerError)
@@ -113,7 +113,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 			} else {
 				claims := &Claims{}
 				token, err := jwt.ParseWithClaims(c.Value, claims, func(token *jwt.Token) (interface{}, error) {
-					return secret_key, nil
+					return secretKey, nil
 				})
 				if err != nil {
 					if err == jwt.ErrSignatureInvalid {
@@ -225,7 +225,7 @@ func claim(r *http.Request) (Claims, error) {
 	if c, err := r.Cookie("token"); err == nil {
 		token := c.Value
 		keyFunc := func(token *jwt.Token) (interface{}, error) {
-			return secret_key, nil
+			return secretKey, nil
 		}
 		if _, err := jwt.ParseWithClaims(token, &claims, keyFunc); err == nil {
 			return claims, nil
