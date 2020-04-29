@@ -12,7 +12,8 @@ import (
 )
 
 type General struct {
-	LogPath string
+	LogPath  string
+	TestUser []string
 }
 
 type Backend struct {
@@ -85,6 +86,10 @@ func init() {
 
 func (_ General) GetLogPath() string {
 	return config.General.LogPath
+}
+
+func (_ General) GetTestUser() []string {
+	return config.General.TestUser
 }
 
 func (_ Backend) GetAddress() string {

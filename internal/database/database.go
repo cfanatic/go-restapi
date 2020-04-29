@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -39,10 +40,6 @@ type Credential struct {
 }
 
 var (
-	DatabaseTemp = map[string]string{
-		"RandomUser1": "test1",
-		"RandomUser2": "test2",
-	}
 	configMysql settings.Mysql
 	configToken settings.Token
 )
@@ -77,22 +74,23 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 			err = query.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password)
 		}
 		if cred == (Credential{}) {
-			err = errors.New("User is not available in database: " + user)
+			err = errors.New(fmt.Sprintf(`User "%s" is not available in the database`, user))
 			return &cred, err
 		}
 	}
 	return &cred, err
 }
 
-func (db *Database) GenerateUser(user, password string) error {
+func (db *Database) UpdatePassword(user, password string) error {
 	var (
 		hash  []byte
 		query *sql.Rows
 		res   sql.Result
 		err   error
 	)
+	checksum := GenerateHash(password)
 	salt := configToken.GetSecretKey()
-	tmp := []byte(password + salt)
+	tmp := []byte(checksum + salt)
 	if hash, err = bcrypt.GenerateFromPassword(tmp, bcrypt.DefaultCost); err == nil {
 		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE user=?)", user); err == nil {
 			var cnt int
@@ -113,4 +111,11 @@ func (db *Database) GenerateUser(user, password string) error {
 		}
 	}
 	return err
+}
+
+func GenerateHash(password string) string {
+	salt := configToken.GetSecretKey()
+	sum := sha256.New()
+	sum.Write([]byte(password + salt))
+	return fmt.Sprintf("%x", sum.Sum(nil))
 }

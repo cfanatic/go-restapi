@@ -15,6 +15,7 @@ import (
 	"github.com/cfanatic/go-netchat/internal/settings"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Message struct {
@@ -30,12 +31,21 @@ type Request struct {
 
 var (
 	config     settings.Token
+	db         *database.Database
 	secret_key = []byte(config.GetSecretKey())
 )
 
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
+}
+
+func init() {
+	var err error
+	if db, err = database.New(); err != nil {
+		Log.Log.Println(err)
+		panic(err)
+	}
 }
 
 func LogHandler(next http.Handler) http.Handler {
@@ -56,10 +66,18 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 		func(w http.ResponseWriter, r *http.Request) {
 			if c, err := r.Cookie("token"); err != nil {
 				if err == http.ErrNoCookie {
+					var cred *database.Credential
 					params := mux.Vars(r)
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
-					if !ok_user || !ok_password || password != database.DatabaseTemp[user] {
+					if cred, err = db.GetUser(user); err != nil {
+						Log.Log.Println(err)
+						http.Error(w, err.Error(), http.StatusUnauthorized)
+						return
+					}
+					hash := cred.Password
+					err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+					if !ok_user || !ok_password || len(hash) == 0 || err == bcrypt.ErrMismatchedHashAndPassword {
 						Log.Log.Println(fmt.Sprintf("Authentification for %s failed", strings.Split(r.RemoteAddr, ":")[0]))
 						http.Error(w, "Authentification failed", http.StatusUnauthorized)
 						return
@@ -85,7 +103,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						HttpOnly: true,
 						Path:     "/",
 					})
-					Log.Log.Println(fmt.Sprintf("%s logged in", user))
+					Log.Log.Println(fmt.Sprintf(`User "%s" logged in`, user))
 					next.ServeHTTP(w, r)
 				} else {
 					Log.Log.Println("Bad request")
