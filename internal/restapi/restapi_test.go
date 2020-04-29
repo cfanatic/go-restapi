@@ -1,8 +1,6 @@
 package restapi
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestSendRequest(t *testing.T) {
 }
