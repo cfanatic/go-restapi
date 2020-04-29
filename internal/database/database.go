@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -57,7 +58,13 @@ func New() (*Database, error) {
 		configMysql.GetPort(),
 		configMysql.GetDatabase(),
 	)
+	to := configMysql.GetTimeout()
 	db.db, err = sql.Open("mysql", dataSource)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*to)
+	defer cancel()
+	if err = db.db.PingContext(ctx); err != nil {
+		err = errors.New("Could not connect to database server")
+	}
 	return &db, err
 }
 
