@@ -35,7 +35,7 @@ type Mysql struct {
 	Port     int
 	Timeout  time.Duration
 	Database string
-	Peer     string
+	Table    string
 }
 
 type Settings struct {
@@ -140,6 +140,6 @@ func (_ Mysql) GetDatabase() string {
 	return config.Mysql.Database
 }
 
-func (_ Mysql) GetPeer() string {
-	return config.Mysql.Peer
+func (_ Mysql) GetTable() string {
+	return config.Mysql.Table
 }

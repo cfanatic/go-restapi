@@ -13,17 +13,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type ttime = time.Time
-
 type Database struct {
-	db   *sql.DB
-	cred *[]Credential
+	db    *sql.DB
+	table string
+	cred  *[]Credential
 }
 
 type Message struct {
 	ID         int    `json:"id"`
 	Name       string `json:"name"`
-	Date       ttime  `json:"date"`
+	Date       []byte `json:"date"`
 	Salt       string `json:"salt"`
 	Message    string `json:"msg"`
 	ReadL      int    `json:"read_local"`
@@ -45,8 +44,10 @@ var (
 )
 
 func New() (*Database, error) {
-	var db Database
-	var err error
+	var (
+		db  Database
+		err error
+	)
 	dataSource := fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s",
 		configM.GetUser(),
@@ -62,6 +63,7 @@ func New() (*Database, error) {
 	if err = db.db.PingContext(ctx); err != nil {
 		err = errors.New("Could not connect to database server")
 	}
+	db.table = configM.GetTable()
 	return &db, err
 }
 
@@ -79,6 +81,102 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 		}
 	}
 	return &cred, err
+}
+
+func (db *Database) GetMessages(start, offset int) (*[]Message, error) {
+	var err error
+	query := &(sql.Rows{})
+	list := []Message{}
+	if query, err = db.db.Query(
+		fmt.Sprintf("SELECT * FROM %s ORDER BY date DESC LIMIT ?, ?", db.table),
+		start,
+		offset,
+	); err == nil {
+		message := Message{}
+		for query.Next() {
+			err = query.Scan(
+				&message.ID,
+				&message.Name,
+				&message.Date,
+				&message.Salt,
+				&message.Message,
+				&message.ReadL,
+				&message.ReadR,
+				&message.Auxiliary,
+				&message.Encryption,
+			)
+			list = append(list, message)
+		}
+	}
+	return &list, err
+}
+
+func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
+	var err error
+	query := &(sql.Rows{})
+	list := []Message{}
+	if query, err = db.db.Query(
+		fmt.Sprintf("SELECT * FROM %s WHERE (read_local=0 AND name=? AND aux=0 AND enc=0) OR (read_remote=0 AND name!=? AND aux=0 AND enc=0)", db.table),
+		name,
+		name,
+	); err == nil {
+		message := Message{}
+		for query.Next() {
+			err = query.Scan(
+				&message.ID,
+				&message.Name,
+				&message.Date,
+				&message.Salt,
+				&message.Message,
+				&message.ReadL,
+				&message.ReadR,
+				&message.Auxiliary,
+				&message.Encryption,
+			)
+			list = append(list, message)
+		}
+	}
+	return &list, err
+}
+
+func (db *Database) GetMessageCount() (uint, error) {
+	var (
+		count uint
+		err   error
+	)
+	query := &(sql.Rows{})
+	if query, err = db.db.Query(fmt.Sprintf("SELECT COUNT(*) FROM %s", db.table)); err == nil {
+		for query.Next() {
+			err = query.Scan(&count)
+		}
+	}
+	return count, err
+}
+
+func (db *Database) SendMessage(message Message) error {
+	var (
+		res sql.Result
+		err error
+	)
+	if res, err = db.db.Exec(
+		fmt.Sprintf("INSERT INTO %s (name, date, salt, msg, read_local, read_remote, aux, enc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", db.table),
+		message.Name,
+		message.Date,
+		message.Salt,
+		message.Message,
+		message.ReadL,
+		message.ReadR,
+		message.Auxiliary,
+		message.Encryption,
+	); err == nil {
+		if cnt, err := res.RowsAffected(); err == nil {
+			if cnt != 1 {
+				err = errors.New("Could not insert message")
+				return err
+			}
+		}
+	}
+	return err
 }
 
 func (db *Database) UpdatePassword(user, password string) error {
