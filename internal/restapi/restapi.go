@@ -19,8 +19,9 @@ import (
 )
 
 type Message struct {
-	Header string `json:"header"`
-	Body   string `json:"body"`
+	Name string `json:"name"`
+	Date string `json:"date"`
+	Text string `json:"text"`
 }
 
 type Request struct {
@@ -70,16 +71,21 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					params := mux.Vars(r)
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
+					if !ok_user || !ok_password {
+						Log.Log.Println(fmt.Sprintf("Login information missing for %s", strings.Split(r.RemoteAddr, ":")[0]))
+						http.Error(w, `{"error":"login information missing"}`, http.StatusUnauthorized)
+						return
+					}
 					if cred, err = db.GetUser(user); err != nil {
 						Log.Log.Println(err)
-						http.Error(w, err.Error(), http.StatusUnauthorized)
+						http.Error(w, `{"error":"unknown user"}`, http.StatusUnauthorized)
 						return
 					}
 					hash := cred.Password
 					err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-					if !ok_user || !ok_password || len(hash) == 0 || err == bcrypt.ErrMismatchedHashAndPassword {
-						Log.Log.Println(fmt.Sprintf("Authentification for %s failed", strings.Split(r.RemoteAddr, ":")[0]))
-						http.Error(w, "Authentification failed", http.StatusUnauthorized)
+					if len(hash) == 0 || err == bcrypt.ErrMismatchedHashAndPassword {
+						Log.Log.Println(fmt.Sprintf("Authentification failed for %s", strings.Split(r.RemoteAddr, ":")[0]))
+						http.Error(w, `{"error":"authentification failed"}`, http.StatusUnauthorized)
 						return
 					}
 					expiration := time.Now().Add(configT.GetExpiration() * time.Minute)
@@ -93,7 +99,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					token, err := tmp.SignedString(secretKey)
 					if err != nil {
 						Log.Log.Println("Could not create token")
-						http.Error(w, "Could not create token", http.StatusInternalServerError)
+						http.Error(w, `{"error":"could not create token"}`, http.StatusInternalServerError)
 						return
 					}
 					http.SetCookie(w, &http.Cookie{
@@ -103,11 +109,10 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						HttpOnly: true,
 						Path:     "/",
 					})
-					Log.Log.Println(fmt.Sprintf(`User "%s" logged in`, user))
 					next.ServeHTTP(w, r)
 				} else {
 					Log.Log.Println("Bad request")
-					http.Error(w, "Bad request", http.StatusBadRequest)
+					http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 					return
 				}
 			} else {
@@ -118,19 +123,18 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 				if err != nil {
 					if err == jwt.ErrSignatureInvalid {
 						Log.Log.Println("Token signature invalid")
-						http.Error(w, "Token signature invalid", http.StatusUnauthorized)
+						http.Error(w, `{"error":"token signature invalid"}`, http.StatusUnauthorized)
 					} else {
 						Log.Log.Println("Bad request")
-						http.Error(w, "Bad request", http.StatusBadRequest)
+						http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 					}
 					return
 				}
 				if !token.Valid {
 					Log.Log.Println("Authentification failed")
-					http.Error(w, "Authentification failed", http.StatusUnauthorized)
+					http.Error(w, `{"error":"authentification failed"}`, http.StatusUnauthorized)
 					return
 				}
-				Log.Log.Println(fmt.Sprintf("%s authorized by existing cookie", claims.Username))
 				next.ServeHTTP(w, r)
 			}
 		},
@@ -149,27 +153,28 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	body, _ := json.Marshal(map[string]string{"status": "login successful"})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Logged in successfully"))
+	w.Write(body)
 }
 
 func UserHandler(w http.ResponseWriter, r *http.Request) {
 	claims, _ := claim(r)
-	body, _ := json.Marshal(Message{
-		Header: "user",
-		Body:   claims.Username,
-	})
+	body, _ := json.Marshal(map[string]string{"user": claims.Username})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write(body)
 }
 
 func UnavailableHandler(w http.ResponseWriter, r *http.Request) {
+	body, _ := json.Marshal(map[string]string{"status": "handler not allowed"})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusMethodNotAllowed)
+	w.Write(body)
 }
 
 func SendRequest(request Request) {
@@ -192,10 +197,6 @@ func SendRequest(request Request) {
 		Log.Log.Println("Status: " + resp.Status)
 		for key, value := range resp.Header {
 			Log.Log.Println(fmt.Sprintf("%s: %s", key, value[0]))
-		}
-		body, _ = ioutil.ReadAll(resp.Body)
-		if message, err := unmarshall(body); err == nil {
-			Log.Log.Println(message)
 		}
 	})
 }

@@ -39,8 +39,9 @@ func main() {
 		Method: "GET",
 		Url:    fmt.Sprintf("https://127.0.0.1:1025/login/%s/%s", cred[0], cred[1]),
 		Message: Message{
-			Header: "message",
-			Body:   "test object",
+			Name: cred[0],
+			Date: time.Now().Format("2006-01-02 15:04:05"),
+			Text: "This is a test",
 		},
 	})
 

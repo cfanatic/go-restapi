@@ -74,7 +74,7 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 			err = query.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password)
 		}
 		if cred == (Credential{}) {
-			err = errors.New(fmt.Sprintf(`User "%s" is not available in the database`, user))
+			err = errors.New("User is not available in database: " + user)
 			return &cred, err
 		}
 	}
