@@ -32,6 +32,7 @@ func main() {
 	s.HandleFunc("/", RootHandler).Methods("GET")
 	s.HandleFunc("/login/{user}/{password}", LoginHandler).Methods("GET")
 	s.HandleFunc("/user", UserHandler).Methods("GET")
+	s.HandleFunc("/get/messages/{start}/{offset}", GetMessagesHandler).Methods("GET")
 	s.Use(LogHandler, AuthenticationHandler)
 
 	// send test request after a delay of two seconds

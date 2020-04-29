@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ type Message struct {
 	Date string `json:"date"`
 	Text string `json:"text"`
 }
+
+type MessageList []Message
 
 type Request struct {
 	Method  string
@@ -166,6 +169,39 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(body)
+}
+
+func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	var body []byte
+	params := mux.Vars(r)
+	start, ok_start := params["start"]
+	offset, ok_offset := params["offset"]
+	if !ok_start || !ok_offset {
+		body, _ = json.Marshal(map[string]string{"error": "parameters missing to get messages"})
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		startInt, _ := strconv.Atoi(start)
+		offsetInt, _ := strconv.Atoi(offset)
+		if res, err := db.GetMessages(startInt, offsetInt); err != nil {
+			body, _ = json.Marshal(map[string]string{"error": err.Error()})
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			var list MessageList
+			for _, item := range *res {
+				message := Message{
+					Name: item.Name,
+					Date: string(item.Date),
+					Text: item.Message,
+				}
+				list = append(list, message)
+			}
+			body, _ = json.Marshal(list)
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
 
