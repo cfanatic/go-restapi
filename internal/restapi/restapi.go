@@ -25,7 +25,7 @@ type Message struct {
 	Text string `json:"text"`
 }
 
-type MessageList []Message
+type Messages []Message
 
 type Request struct {
 	Method  string
@@ -75,19 +75,19 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					user, ok_user := params["user"]
 					password, ok_password := params["password"]
 					if !ok_user || !ok_password {
-						Log.Log.Println(fmt.Sprintf("Login information missing for %s", strings.Split(r.RemoteAddr, ":")[0]))
+						Log.Log.Println(fmt.Sprintf("Error: Login information missing for %s", strings.Split(r.RemoteAddr, ":")[0]))
 						http.Error(w, `{"error":"login information missing"}`, http.StatusUnauthorized)
 						return
 					}
 					if cred, err = db.GetUser(user); err != nil {
-						Log.Log.Println(err)
+						Log.Log.Println("Error:", err)
 						http.Error(w, `{"error":"unknown user"}`, http.StatusUnauthorized)
 						return
 					}
 					hash := cred.Password
 					err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 					if len(hash) == 0 || err == bcrypt.ErrMismatchedHashAndPassword {
-						Log.Log.Println(fmt.Sprintf("Authentification failed for %s", strings.Split(r.RemoteAddr, ":")[0]))
+						Log.Log.Println(fmt.Sprintf("Error: Authentification failed for %s", strings.Split(r.RemoteAddr, ":")[0]))
 						http.Error(w, `{"error":"authentification failed"}`, http.StatusUnauthorized)
 						return
 					}
@@ -101,7 +101,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					tmp := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 					token, err := tmp.SignedString(secretKey)
 					if err != nil {
-						Log.Log.Println("Could not create token")
+						Log.Log.Println("Error: Could not create token")
 						http.Error(w, `{"error":"could not create token"}`, http.StatusInternalServerError)
 						return
 					}
@@ -114,7 +114,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 					})
 					next.ServeHTTP(w, r)
 				} else {
-					Log.Log.Println("Bad request")
+					Log.Log.Println("Error: Bad request")
 					http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 					return
 				}
@@ -125,16 +125,16 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 				})
 				if err != nil {
 					if err == jwt.ErrSignatureInvalid {
-						Log.Log.Println("Token signature invalid")
+						Log.Log.Println("Error: Token signature invalid")
 						http.Error(w, `{"error":"token signature invalid"}`, http.StatusUnauthorized)
 					} else {
-						Log.Log.Println("Bad request")
+						Log.Log.Println("Error: Bad request")
 						http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 					}
 					return
 				}
 				if !token.Valid {
-					Log.Log.Println("Authentification failed")
+					Log.Log.Println("Error: Authentification failed")
 					http.Error(w, `{"error":"authentification failed"}`, http.StatusUnauthorized)
 					return
 				}
@@ -187,7 +187,7 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 			body, _ = json.Marshal(map[string]string{"error": err.Error()})
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
-			var list MessageList
+			var list Messages
 			for _, item := range *res {
 				message := Message{
 					Name: item.Name,
