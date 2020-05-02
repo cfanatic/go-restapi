@@ -80,7 +80,7 @@ func AuthenticationHandler(next http.Handler) http.Handler {
 						return
 					}
 					if cred, err = db.GetUser(user); err != nil {
-						Log.Log.Println("Error:", err)
+						Log.Log.Println("Error:", err, fmt.Sprintf("for %s", strings.Split(r.RemoteAddr, ":")[0]))
 						http.Error(w, `{"error":"unknown user"}`, http.StatusUnauthorized)
 						return
 					}
