@@ -17,6 +17,9 @@ func TestNew(t *testing.T) {
 		} else {
 			Log.Log.Println(err)
 		}
+		if err := db.UpdatePassword("<user>", "<password>"); err != nil {
+			Log.Log.Println(err)
+		}
 		fmt.Println(db.GetMessageCount())
 		msg := Message{
 			Name:    "cfanatic",

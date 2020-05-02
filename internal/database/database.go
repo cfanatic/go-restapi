@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -186,9 +187,7 @@ func (db *Database) UpdatePassword(user, password string) error {
 		res   sql.Result
 		err   error
 	)
-	checksum := GenerateHash(password)
-	salt := configT.GetSecretKey()
-	tmp := []byte(checksum + salt)
+	tmp := []byte(GenerateHash(password))
 	if hash, err = bcrypt.GenerateFromPassword(tmp, bcrypt.DefaultCost); err == nil {
 		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE user=?)", user); err == nil {
 			var cnt int
@@ -213,7 +212,7 @@ func (db *Database) UpdatePassword(user, password string) error {
 
 func GenerateHash(password string) string {
 	salt := configT.GetSecretKey()
-	sum := sha256.New()
-	sum.Write([]byte(password + salt))
-	return fmt.Sprintf("%x", sum.Sum(nil))
+	hash := sha256.New()
+	hash.Write([]byte(fmt.Sprintf("%s%s", password, salt)))
+	return hex.EncodeToString(hash.Sum(nil))
 }

@@ -11,7 +11,7 @@ port_tls = 1025
 certificate = ["misc/server.crt", "misc/server.key"]
 
 [token]
-secret_key = ""
+secretkey = ""
 expiration = 5 # in minutes
 
 [mysql]
