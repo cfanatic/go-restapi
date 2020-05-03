@@ -18,6 +18,7 @@ type Database struct {
 	db    *sql.DB
 	table string
 	cred  *[]Credential
+	users map[string]string
 }
 
 type Message struct {
@@ -65,6 +66,7 @@ func New() (*Database, error) {
 		err = errors.New("Could not connect to database server")
 	}
 	db.table = configM.GetTable()
+	db.users = map[string]string{}
 	return &db, err
 }
 
@@ -72,7 +74,7 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 	var err error
 	query := &(sql.Rows{})
 	cred := Credential{}
-	if query, err = db.db.Query("SELECT * FROM users WHERE user=?", user); err == nil {
+	if query, err = db.db.Query("SELECT * FROM users WHERE user=? OR name=?", user, user); err == nil {
 		for query.Next() {
 			err = query.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password)
 		}
@@ -106,6 +108,14 @@ func (db *Database) GetMessages(start, offset int) (*[]Message, error) {
 				&message.Auxiliary,
 				&message.Encryption,
 			)
+			// as per MySQL table convention, "name" equals hostname and "user" equals username
+			// this distinction is necessary in order for the Firefox extension to work
+			if user, ok := db.users[message.Name]; !ok {
+				cred, _ := db.GetUser(message.Name)
+				db.users[message.Name] = cred.User
+			} else {
+				message.Name = user
+			}
 			list = append(list, message)
 		}
 	}
