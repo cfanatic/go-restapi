@@ -91,7 +91,7 @@ func (db *Database) GetMessages(start, offset int) (*[]Message, error) {
 	query := &(sql.Rows{})
 	list := []Message{}
 	if query, err = db.db.Query(
-		fmt.Sprintf("SELECT * FROM %s ORDER BY date DESC LIMIT ?, ?", db.table),
+		fmt.Sprintf("SELECT * FROM %s WHERE read_remote=1 ORDER BY date DESC LIMIT ?, ?", db.table),
 		start,
 		offset,
 	); err == nil {
@@ -145,9 +145,35 @@ func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
 				&message.Encryption,
 			)
 			list = append(list, message)
+			if err = db.UpdateMessage(name, message); err != nil {
+				return &list, err
+			}
 		}
 	}
 	return &list, err
+}
+
+func (db *Database) UpdateMessage(name string, message Message) error {
+	var (
+		res sql.Result
+		err error
+	)
+	if message.Name == name {
+		if res, err = db.db.Exec(
+			fmt.Sprintf("UPDATE %s SET read_local=1 WHERE id=?", db.table), message.ID); err == nil {
+		}
+	} else {
+		if res, err = db.db.Exec(
+			fmt.Sprintf("UPDATE %s SET read_remote=1 WHERE id=?", db.table), message.ID); err == nil {
+		}
+	}
+	if cnt, err := res.RowsAffected(); err == nil {
+		if cnt != 1 {
+			err = errors.New("Could not update read status")
+			return err
+		}
+	}
+	return err
 }
 
 func (db *Database) GetMessageCount() (uint, error) {

@@ -205,6 +205,30 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func GetMessagesUnreadHandler(w http.ResponseWriter, r *http.Request) {
+	var body []byte
+	claims, _ := claim(r)
+	if res, err := db.GetMessagesUnread(claims.Username); err != nil {
+		body, _ = json.Marshal(map[string]string{"error": err.Error()})
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		var list Messages
+		for _, item := range *res {
+			message := Message{
+				Name: item.Name,
+				Date: string(item.Date),
+				Text: item.Message,
+			}
+			list = append(list, message)
+		}
+		body, _ = json.Marshal(list)
+		w.WriteHeader(http.StatusOK)
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
 func UnavailableHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := json.Marshal(map[string]string{"status": "handler not allowed"})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
