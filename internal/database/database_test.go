@@ -10,7 +10,7 @@ import (
 
 func TestNew(t *testing.T) {
 	if db, err := New(); err == nil {
-		if tmp, err := db.GetMessages(0, 3); err == nil {
+		if tmp, err := db.GetMessages(0, 3, "<name>"); err == nil {
 			for _, val := range *tmp {
 				fmt.Println(val.ID, "     ", val.Name, "     ", string(val.Date), "     ", val.Message)
 			}

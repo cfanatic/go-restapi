@@ -86,12 +86,12 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 	return &cred, err
 }
 
-func (db *Database) GetMessages(start, offset int) (*[]Message, error) {
+func (db *Database) GetMessages(start, offset int, user string) (*[]Message, error) {
 	var err error
 	query := &(sql.Rows{})
 	list := []Message{}
 	if query, err = db.db.Query(
-		fmt.Sprintf("SELECT * FROM %s WHERE read_remote=1 ORDER BY date DESC LIMIT ?, ?", db.table),
+		fmt.Sprintf("SELECT * FROM %s ORDER BY date DESC LIMIT ?, ?", db.table),
 		start,
 		offset,
 	); err == nil {
@@ -108,15 +108,17 @@ func (db *Database) GetMessages(start, offset int) (*[]Message, error) {
 				&message.Auxiliary,
 				&message.Encryption,
 			)
-			// as per MySQL table convention, "name" equals hostname and "user" equals username
+			// as per MySQL table convention, column "name" equals hostname and "user" equals username
 			// this distinction is necessary in order for the Firefox extension to work
-			if user, ok := db.users[message.Name]; !ok {
+			if _, ok := db.users[message.Name]; !ok {
 				cred, _ := db.GetUser(message.Name)
 				db.users[message.Name] = cred.User
-			} else {
-				message.Name = user
 			}
+			message.Name = db.users[message.Name]
 			list = append(list, message)
+			if err = db.UpdateMessage(user, message); err != nil {
+				return &list, err
+			}
 		}
 	}
 	return &list, err
@@ -127,7 +129,7 @@ func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
 	query := &(sql.Rows{})
 	list := []Message{}
 	if query, err = db.db.Query(
-		fmt.Sprintf("SELECT * FROM %s WHERE (read_local=0 AND name=? AND aux=0 AND enc=0) OR (read_remote=0 AND name!=? AND aux=0 AND enc=0)", db.table),
+		fmt.Sprintf("SELECT * FROM %s WHERE (read_local=0 AND name=?) OR (read_remote=0 AND name!=?)", db.table),
 		name,
 		name,
 	); err == nil {
@@ -144,6 +146,13 @@ func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
 				&message.Auxiliary,
 				&message.Encryption,
 			)
+			// as per MySQL table convention, column "name" equals hostname and "user" equals username
+			// this distinction is necessary in order for the Firefox extension to work
+			if _, ok := db.users[message.Name]; !ok {
+				cred, _ := db.GetUser(message.Name)
+				db.users[message.Name] = cred.User
+			}
+			message.Name = db.users[message.Name]
 			list = append(list, message)
 			if err = db.UpdateMessage(name, message); err != nil {
 				return &list, err
@@ -154,23 +163,14 @@ func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
 }
 
 func (db *Database) UpdateMessage(name string, message Message) error {
-	var (
-		res sql.Result
-		err error
-	)
+	var err error
 	if message.Name == name {
-		if res, err = db.db.Exec(
+		if _, err = db.db.Exec(
 			fmt.Sprintf("UPDATE %s SET read_local=1 WHERE id=?", db.table), message.ID); err == nil {
 		}
 	} else {
-		if res, err = db.db.Exec(
+		if _, err = db.db.Exec(
 			fmt.Sprintf("UPDATE %s SET read_remote=1 WHERE id=?", db.table), message.ID); err == nil {
-		}
-	}
-	if cnt, err := res.RowsAffected(); err == nil {
-		if cnt != 1 {
-			err = errors.New("Could not update read status")
-			return err
 		}
 	}
 	return err

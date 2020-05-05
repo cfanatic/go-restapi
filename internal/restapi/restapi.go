@@ -174,6 +174,8 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	var body []byte
+	claims, _ := claim(r)
+	user := claims.Username
 	params := mux.Vars(r)
 	start, ok_start := params["start"]
 	offset, ok_offset := params["offset"]
@@ -183,7 +185,7 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		startInt, _ := strconv.Atoi(start)
 		offsetInt, _ := strconv.Atoi(offset)
-		if res, err := db.GetMessages(startInt, offsetInt); err != nil {
+		if res, err := db.GetMessages(startInt, offsetInt, user); err != nil {
 			body, _ = json.Marshal(map[string]string{"error": err.Error()})
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
@@ -208,7 +210,8 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 func GetMessagesUnreadHandler(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	claims, _ := claim(r)
-	if res, err := db.GetMessagesUnread(claims.Username); err != nil {
+	user := claims.Username
+	if res, err := db.GetMessagesUnread(user); err != nil {
 		body, _ = json.Marshal(map[string]string{"error": err.Error()})
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
