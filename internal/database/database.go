@@ -18,25 +18,21 @@ type Database struct {
 	db    *sql.DB
 	table string
 	cred  *[]Credential
-	users map[string]string
 }
 
 type Message struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	Date       []byte `json:"date"`
-	Salt       string `json:"salt"`
-	Message    string `json:"msg"`
-	ReadL      int    `json:"read_local"`
-	ReadR      int    `json:"read_remote"`
-	Auxiliary  int    `json:"aux"`
-	Encryption int    `json:"enc"`
+	ID      int       `json:"id"`
+	Name    string    `json:"name"`
+	Date    time.Time `json:"date"`
+	Message string    `json:"msg"`
+	ReadL   int       `json:"read_local"`
+	ReadR   int       `json:"read_remote"`
 }
 
 type Credential struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
-	User     string `json:"user"`
+	Host     string `json:"host"`
 	Password string `json:"password"`
 }
 
@@ -51,7 +47,7 @@ func New() (*Database, error) {
 		err error
 	)
 	dataSource := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		configM.GetUser(),
 		configM.GetPassword(),
 		configM.GetAddress(),
@@ -66,17 +62,16 @@ func New() (*Database, error) {
 		err = errors.New("Could not connect to database server")
 	}
 	db.table = configM.GetTable()
-	db.users = map[string]string{}
 	return &db, err
 }
 
-func (db *Database) GetUser(user string) (*Credential, error) {
+func (db *Database) GetUser(name string) (*Credential, error) {
 	var err error
 	query := &(sql.Rows{})
 	cred := Credential{}
-	if query, err = db.db.Query("SELECT * FROM users WHERE user=? OR name=?", user, user); err == nil {
+	if query, err = db.db.Query("SELECT * FROM users WHERE host=? OR name=?", name, name); err == nil {
 		for query.Next() {
-			err = query.Scan(&cred.ID, &cred.Name, &cred.User, &cred.Password)
+			err = query.Scan(&cred.ID, &cred.Name, &cred.Host, &cred.Password)
 		}
 		if cred == (Credential{}) {
 			err = errors.New("User is not available in database")
@@ -86,7 +81,7 @@ func (db *Database) GetUser(user string) (*Credential, error) {
 	return &cred, err
 }
 
-func (db *Database) GetMessages(start, offset int, user string) (*[]Message, error) {
+func (db *Database) GetMessages(start, offset int, name string) (*[]Message, error) {
 	var err error
 	query := &(sql.Rows{})
 	list := []Message{}
@@ -101,22 +96,12 @@ func (db *Database) GetMessages(start, offset int, user string) (*[]Message, err
 				&message.ID,
 				&message.Name,
 				&message.Date,
-				&message.Salt,
 				&message.Message,
 				&message.ReadL,
 				&message.ReadR,
-				&message.Auxiliary,
-				&message.Encryption,
 			)
-			// as per MySQL table convention, column "name" equals hostname and "user" equals username
-			// this distinction is necessary in order for the Firefox extension to work
-			if _, ok := db.users[message.Name]; !ok {
-				cred, _ := db.GetUser(message.Name)
-				db.users[message.Name] = cred.User
-			}
-			message.Name = db.users[message.Name]
 			list = append(list, message)
-			if err = db.UpdateMessage(user, message); err != nil {
+			if err = db.UpdateMessage(name, message); err != nil {
 				return &list, err
 			}
 		}
@@ -139,20 +124,10 @@ func (db *Database) GetMessagesUnread(name string) (*[]Message, error) {
 				&message.ID,
 				&message.Name,
 				&message.Date,
-				&message.Salt,
 				&message.Message,
 				&message.ReadL,
 				&message.ReadR,
-				&message.Auxiliary,
-				&message.Encryption,
 			)
-			// as per MySQL table convention, column "name" equals hostname and "user" equals username
-			// this distinction is necessary in order for the Firefox extension to work
-			if _, ok := db.users[message.Name]; !ok {
-				cred, _ := db.GetUser(message.Name)
-				db.users[message.Name] = cred.User
-			}
-			message.Name = db.users[message.Name]
 			list = append(list, message)
 			if err = db.UpdateMessage(name, message); err != nil {
 				return &list, err
@@ -196,15 +171,12 @@ func (db *Database) SendMessage(message Message) error {
 		err error
 	)
 	if res, err = db.db.Exec(
-		fmt.Sprintf("INSERT INTO %s (name, date, salt, msg, read_local, read_remote, aux, enc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", db.table),
+		fmt.Sprintf("INSERT INTO %s (name, date, msg, read_local, read_remote) VALUES (?, ?, ?, ?, ?)", db.table),
 		message.Name,
 		message.Date,
-		message.Salt,
 		message.Message,
 		message.ReadL,
 		message.ReadR,
-		message.Auxiliary,
-		message.Encryption,
 	); err == nil {
 		if cnt, err := res.RowsAffected(); err == nil {
 			if cnt != 1 {
@@ -216,7 +188,7 @@ func (db *Database) SendMessage(message Message) error {
 	return err
 }
 
-func (db *Database) UpdatePassword(user, password string) error {
+func (db *Database) UpdatePassword(name, password string) error {
 	var (
 		hash  []byte
 		query *sql.Rows
@@ -225,16 +197,16 @@ func (db *Database) UpdatePassword(user, password string) error {
 	)
 	tmp := []byte(GenerateHash(password))
 	if hash, err = bcrypt.GenerateFromPassword(tmp, bcrypt.DefaultCost); err == nil {
-		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE user=?)", user); err == nil {
+		if query, err = db.db.Query("SELECT EXISTS(SELECT 1 FROM users WHERE name=?)", name); err == nil {
 			var cnt int
 			query.Next()
 			query.Scan(&cnt)
 			if cnt == 0 {
-				err = errors.New("User is not available in database: " + user)
+				err = errors.New("User is not available in database: " + name)
 				return err
 			}
 		}
-		if res, err = db.db.Exec("UPDATE users SET password=? WHERE user=?", hash, user); err == nil {
+		if res, err = db.db.Exec("UPDATE users SET password=? WHERE name=?", hash, name); err == nil {
 			if cnt, err := res.RowsAffected(); err == nil {
 				if cnt != 1 {
 					err = errors.New("Could not update user password")

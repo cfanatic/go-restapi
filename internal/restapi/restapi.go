@@ -55,10 +55,12 @@ func init() {
 func LogHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			Log.Log.Println(fmt.Sprintf("Request from %s to %s %s",
+			claims, _ := claim(r)
+			Log.Log.Println(fmt.Sprintf("Request from %s to %s %s (%s)",
 				strings.Split(r.RemoteAddr, ":")[0],
 				r.Method,
 				r.RequestURI,
+				claims.Username,
 			))
 			next.ServeHTTP(w, r)
 		},
@@ -193,7 +195,7 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 			for _, item := range *res {
 				message := Message{
 					Name: item.Name,
-					Date: string(item.Date),
+					Date: item.Date.Format("2006-01-02 15:04:05"),
 					Text: item.Message,
 				}
 				list = append(list, message)
@@ -210,8 +212,7 @@ func GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
 func GetMessagesUnreadHandler(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	claims, _ := claim(r)
-	user := claims.Username
-	if res, err := db.GetMessagesUnread(user); err != nil {
+	if res, err := db.GetMessagesUnread(claims.Username); err != nil {
 		body, _ = json.Marshal(map[string]string{"error": err.Error()})
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
@@ -219,12 +220,33 @@ func GetMessagesUnreadHandler(w http.ResponseWriter, r *http.Request) {
 		for _, item := range *res {
 			message := Message{
 				Name: item.Name,
-				Date: string(item.Date),
+				Date: item.Date.Format("2006-01-02 15:04:05"),
 				Text: item.Message,
 			}
 			list = append(list, message)
 		}
 		body, _ = json.Marshal(list)
+		w.WriteHeader(http.StatusOK)
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	tmp, _ := unmarshall(body)
+	date, _ := time.Parse("2006-01-02 15:04:05", tmp.Date)
+	message := database.Message{
+		Name:    tmp.Name,
+		Date:    date,
+		Message: tmp.Text,
+	}
+	if err := db.SendMessage(message); err != nil {
+		body, _ = json.Marshal(map[string]string{"error": err.Error()})
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		body, _ = json.Marshal(map[string]string{"status": "message sent"})
 		w.WriteHeader(http.StatusOK)
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")

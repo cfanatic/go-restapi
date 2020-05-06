@@ -34,6 +34,7 @@ func main() {
 	s.HandleFunc("/user", UserHandler).Methods("GET")
 	s.HandleFunc("/messages/{start}/{offset}", GetMessagesHandler).Methods("GET")
 	s.HandleFunc("/messages/unread", GetMessagesUnreadHandler).Methods("GET")
+	s.HandleFunc("/message/send", SendMessageHandler).Methods("POST")
 	s.Use(LogHandler, AuthenticationHandler)
 
 	// send test request after a delay of two seconds
