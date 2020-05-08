@@ -246,7 +246,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		body, _ = json.Marshal(map[string]string{"error": err.Error()})
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		body, _ = json.Marshal(map[string]string{"status": "message sent"})
+		body, _ = json.Marshal(map[string]string{"status": "message sent successfully"})
 		w.WriteHeader(http.StatusOK)
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -255,7 +255,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UnavailableHandler(w http.ResponseWriter, r *http.Request) {
-	body, _ := json.Marshal(map[string]string{"status": "handler not allowed"})
+	body, _ := json.Marshal(map[string]string{"error": "handler not allowed"})
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusMethodNotAllowed)
