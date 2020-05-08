@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var configG settings.General
 var configB settings.Backend
 
 func main() {
@@ -20,7 +19,6 @@ func main() {
 	Log.Log.Println("##### Starting new session #####")
 
 	// load configuration parameters
-	cred := configG.GetTestUser()
 	addr := configB.GetAddress()
 	port := configB.GetPortTLS()
 	cert := configB.GetCertificate()
@@ -36,17 +34,6 @@ func main() {
 	s.HandleFunc("/messages/unread", GetMessagesUnreadHandler).Methods("GET")
 	s.HandleFunc("/message/send", SendMessageHandler).Methods("POST")
 	s.Use(LogHandler, AuthenticationHandler)
-
-	// send test request after a delay of two seconds
-	SendRequest(Request{
-		Method: "GET",
-		Url:    fmt.Sprintf("https://127.0.0.1:1025/login/%s/%s", cred[0], cred[1]),
-		Message: Message{
-			Name: cred[0],
-			Date: time.Now().Format("2006-01-02 15:04:05"),
-			Text: "This is a test",
-		},
-	})
 
 	// listen for incoming HTTPS connections
 	srv := &http.Server{
