@@ -11,4 +11,6 @@ WORKDIR /go/netchat
 COPY --from=build /go/netchat/bin .
 COPY --from=build /go/netchat/misc misc/
 EXPOSE 1025
-ENTRYPOINT /go/netchat/netchat
+RUN /go/netchat/netchat -mode=init gman gman-hostname 1234
+RUN /go/netchat/netchat -mode=init freeman freeman-hostname 4321
+ENTRYPOINT /go/netchat/netchat -mode=terminal

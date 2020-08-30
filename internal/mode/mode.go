@@ -12,11 +12,13 @@ const (
 )
 
 var mode = flag.String("mode", PATH_TERMINAL, "default configuration mode")
+var args []string
 
 func GetFilePath(filename string) string {
 	var path string
 	if flag.Parse(); *mode == "init" {
 		path, _ = filepath.Abs(PATH_INIT)
+		args = flag.Args()
 	} else if *mode == "terminal" {
 		path, _ = filepath.Abs(PATH_TERMINAL)
 	} else if *mode == "debug" {
@@ -29,4 +31,8 @@ func GetFilePath(filename string) string {
 
 func GetMode() string {
 	return *mode
+}
+
+func GetArgs() []string {
+	return args
 }

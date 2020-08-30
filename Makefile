@@ -3,11 +3,11 @@ compile:
 
 init:
 	@go build -o bin/netchat cmd/netchat/main.go
-	@./bin/netchat -mode init
+	@./bin/netchat -mode=init
 
 deploy:
 	@go build -o bin/netchat cmd/netchat/main.go
-	@./bin/netchat -mode terminal
+	@./bin/netchat -mode=terminal
 
 clean:
 	rm -f -r bin/netchat

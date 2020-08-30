@@ -17,12 +17,23 @@ import (
 var configB settings.Backend
 
 func main() {
-	switch mode := mode.GetMode(); mode {
+	var (
+		db       *database.Database
+		err      error
+		user     string
+		hostname string
+		password string
+	)
+	switch mode.GetMode() {
 	case "init":
-		var user, hostname, password string
-		if db, err := database.New(); err != nil {
+		// connect to database
+		if db, err = database.New(); err != nil {
 			Log.Log.Println(err)
 			panic(err)
+		}
+		// get credentials either from command line or stdin
+		if creds := mode.GetArgs(); len(creds) == 3 {
+			user, hostname, password = creds[0], creds[1], creds[2]
 		} else {
 			fmt.Print("Enter user: ")
 			fmt.Scanln(&user)
@@ -30,14 +41,16 @@ func main() {
 			fmt.Scanln(&hostname)
 			fmt.Print("Enter password: ")
 			fmt.Scanln(&password)
-			if err = db.CreateUser(user, hostname); err != nil {
-				fmt.Println(err)
-			}
-			if err = db.UpdateUser(user, hostname, password); err == nil {
-				fmt.Println("Login Hash:", database.GenerateHash(password))
-			} else {
-				fmt.Println(err)
-			}
+		}
+		// create new user in database
+		if err = db.CreateUser(user, hostname); err != nil {
+			fmt.Println(err)
+		}
+		// update password for new user
+		if err = db.UpdateUser(user, hostname, password); err == nil {
+			fmt.Println("Login Hash:", database.GenerateHash(password))
+		} else {
+			fmt.Println(err)
 		}
 	case "terminal", "debug":
 		// print welcome message
