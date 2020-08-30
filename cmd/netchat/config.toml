@@ -2,7 +2,7 @@
 
 [general]
 logpath = "misc/netchat.log"
-testuser = ["test", "<hash>"] # generated during init mode
+testuser = ["test", ""] # hash is generated during init mode
 
 [backend]
 address = "127.0.0.1"
@@ -17,7 +17,7 @@ expiration = 5 # in minutes
 [mysql]
 user = ""
 password = ""
-address = "192.168.0.2"
+address = "192.168.0.2" # local IP address
 port = 3306
 timeout = 3
 database = ""
