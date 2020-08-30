@@ -9,21 +9,28 @@
             "problemMatcher": []
         },
         {
-            "label": "2: Deploy",
+            "label": "2: Init",
+            "type": "shell",
+            "isBackground": true,
+            "command": "make init",
+            "problemMatcher": []
+        },
+        {
+            "label": "3: Deploy",
             "type": "shell",
             "isBackground": true,
             "command": "make deploy",
             "problemMatcher": []
         },
         {
-            "label": "3: Clean",
+            "label": "4: Clean",
             "type": "shell",
             "isBackground": true,
             "command": "make clean",
             "problemMatcher": []
         },
         {
-            "label": "4: Test",
+            "label": "5: Test",
             "type": "shell",
             "isBackground": true,
             "command": "go test $(go list ./... | grep -v /netchat)",

@@ -188,7 +188,32 @@ func (db *Database) SendMessage(message Message) error {
 	return err
 }
 
-func (db *Database) UpdatePassword(name, password string) error {
+func (db *Database) CreateUser(name, hostname string) error {
+	var (
+		res sql.Result
+		err error
+	)
+	if _, err = db.GetUser(name); err == nil {
+		err = errors.New("User already available")
+		return err
+	}
+	if res, err = db.db.Exec(
+		fmt.Sprintf("INSERT INTO %s (name, host, password) VALUES (?, ?, ?)", "users"),
+		name,
+		hostname,
+		"",
+	); err == nil {
+		if cnt, err := res.RowsAffected(); err == nil {
+			if cnt != 1 {
+				err = errors.New("Could not create new user")
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func (db *Database) UpdateUser(name, hostname, password string) error {
 	var (
 		hash  []byte
 		query *sql.Rows
@@ -206,7 +231,7 @@ func (db *Database) UpdatePassword(name, password string) error {
 				return err
 			}
 		}
-		if res, err = db.db.Exec("UPDATE users SET password=? WHERE name=?", hash, name); err == nil {
+		if res, err = db.db.Exec("UPDATE users SET host=?, password=? WHERE name=?", hostname, hash, name); err == nil {
 			if cnt, err := res.RowsAffected(); err == nil {
 				if cnt != 1 {
 					err = errors.New("Could not update user password")
